@@ -150,8 +150,15 @@ class DcInsideCollector:
             listed = parse_list_page(html)
             progress(f"page {page}: {len(listed)} posts")
             for item in listed:
-                post_html = self._get(
-                    POST_URL.format(gallery_id=self.gallery_id, post_no=item.post_no))
+                try:
+                    post_html = self._get(
+                        POST_URL.format(gallery_id=self.gallery_id, post_no=item.post_no))
+                except BlockedError:
+                    raise  # 차단은 즉시 정지
+                except RuntimeError as exc:
+                    # 삭제된 글(404) 등: 해당 글만 건너뛰고 계속
+                    progress(f"skip post {item.post_no}: {exc}")
+                    continue
                 detail = parse_post_page(post_html, item.post_no)
                 yield RawPost(
                     gallery_id=self.gallery_id, post_no=item.post_no,
