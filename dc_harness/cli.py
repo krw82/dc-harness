@@ -139,6 +139,15 @@ def _cmd_show(args, cfg: Config) -> int:
     return 0
 
 
+def _cmd_ask(args, cfg: Config, llm_factory=None) -> int:
+    from .ontology.ask import ask
+    from .ontology.defn import load_ontology
+    with Store(Path(args.db)) as store:
+        llm = (llm_factory or _make_llm)(cfg)
+        print(ask(store, load_ontology(None), llm, args.gallery, args.question))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dch", description="DC Inside gallery opinion research harness")
@@ -194,6 +203,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_show.add_argument("--post", type=int, required=True)
     p_show.add_argument("--db", type=Path, default=Path("data/dch.db"))
     p_show.set_defaults(func=_cmd_show)
+
+    p_ask = sub.add_parser("ask", help="온톨로지 도구 기반 질의 (LLM, 읽기 전용)")
+    p_ask.add_argument("--gallery", required=True)
+    p_ask.add_argument("question")
+    p_ask.add_argument("--db", type=Path, default=Path("data/dch.db"))
+    p_ask.set_defaults(func=_cmd_ask)
     return parser
 
 
