@@ -1,0 +1,164 @@
+from __future__ import annotations
+
+import random
+import re
+import time
+from collections.abc import Iterator
+from dataclasses import dataclass
+from datetime import datetime
+from urllib.parse import parse_qs, urlparse
+
+import httpx
+from bs4 import BeautifulSoup
+
+from ..config import CollectConfig
+from ..models import Comment, RawPost
+from ..net.guard import DC_HOSTS, UnsafeUrlError, validate_http_url
+from ..normalize import clean_text
+
+LIST_URL = "https://gall.dcinside.com/board/lists/?id={gallery_id}&page={page}"
+POST_URL = "https://gall.dcinside.com/board/view/?id={gallery_id}&no={post_no}"
+
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
+BLOCK_MARKERS = ("captcha", "자동 접근", "보안을 위해")
+
+
+class BlockedError(RuntimeError):
+    """DC 차단/캡차 페이지 감지."""
+
+
+@dataclass
+class ListedPost:
+    post_no: int
+    title: str
+    author: str
+    created_at: datetime | None
+    views: int
+    recommend: int
+
+
+@dataclass
+class PostDetail:
+    title: str
+    body: str
+    author: str
+    created_at: datetime | None
+    views: int
+    recommend: int
+    comments: list[Comment]
+
+
+def _int(text: str | None) -> int:
+    digits = re.sub(r"[^\d]", "", text or "")
+    return int(digits) if digits else 0
+
+
+def _parse_date(tag) -> datetime | None:
+    if tag is None:
+        return None
+    m = _DATE_RE.search(tag.get("title", "") or "")
+    if not m:
+        return None
+    return datetime.strptime(m.group(0), "%Y-%m-%d %H:%M:%S")
+
+
+def parse_list_page(html: str) -> list[ListedPost]:
+    soup = BeautifulSoup(html, "html.parser")
+    items: list[ListedPost] = []
+    for tr in soup.select("tr.ub-content"):
+        link = tr.select_one(".gall_tit a")
+        if link is None or not link.get("href"):
+            continue
+        qs = parse_qs(urlparse(link["href"]).query)
+        if "no" not in qs or not qs["no"][0].isdigit():
+            continue
+        writer = tr.select_one(".gall_writer")
+        count = tr.select_one(".gall_count")
+        rec = tr.select_one(".gall_recommend")
+        items.append(ListedPost(
+            post_no=int(qs["no"][0]),
+            title=clean_text(link.get_text()),
+            author=clean_text(writer.get_text()) if writer else "",
+            created_at=_parse_date(tr.select_one(".gall_date")),
+            views=_int(count.get_text()) if count else 0,
+            recommend=_int(rec.get_text()) if rec else 0,
+        ))
+    return items
+
+
+def parse_post_page(html: str, post_no: int) -> PostDetail:
+    soup = BeautifulSoup(html, "html.parser")
+    title_tag = soup.select_one(".title_subject")
+    body_tag = soup.select_one(".write_div") or soup.select_one(".view_content_wrap")
+    comments: list[Comment] = []
+    for seq, li in enumerate(soup.select("ul.comment_ul li.ub-content")):
+        rec_tag = li.select_one(".cmt_info strong")
+        usertxt = li.select_one(".usertxt")
+        comments.append(Comment(
+            post_no=post_no, seq=seq,
+            text=clean_text(usertxt.get_text()) if usertxt else "",
+            recommend=_int(rec_tag.get_text()) if rec_tag else 0,
+        ))
+    strongs = [s.get_text() for s in soup.select("em strong")]
+    nickname = soup.select_one(".nickname")
+    return PostDetail(
+        title=clean_text(title_tag.get_text()) if title_tag else "",
+        body=clean_text(body_tag.get_text()) if body_tag else "",
+        author=clean_text(nickname.get_text()) if nickname else "",
+        created_at=_parse_date(soup.select_one(".gall_date")),
+        views=_int(strongs[0] if len(strongs) > 0 else ""),
+        recommend=_int(strongs[1] if len(strongs) > 1 else ""),
+        comments=comments,
+    )
+
+
+class DcInsideCollector:
+    def __init__(self, gallery_id: str, cfg: CollectConfig, cookies: str | None = None,
+                 client: httpx.Client | None = None):
+        self.gallery_id = gallery_id
+        self.cfg = cfg
+        headers = {"User-Agent": cfg.user_agent}
+        if cookies:
+            headers["Cookie"] = cookies
+        self.client = client or httpx.Client(headers=headers, timeout=30.0,
+                                             follow_redirects=True)
+
+    def _get(self, url: str) -> str:
+        validate_http_url(url, DC_HOSTS)  # http/https + DC allowlist (사설 IP 불가)
+        last_exc: Exception | None = None
+        for attempt in range(self.cfg.max_retries):
+            try:
+                resp = self.client.get(url)
+                if resp.status_code in (403, 429) or any(
+                        m in resp.text for m in BLOCK_MARKERS):
+                    raise BlockedError(
+                        f"blocked by dcinside: {url} (status={resp.status_code})")
+                resp.raise_for_status()
+                time.sleep(self.cfg.delay_min_seconds
+                           + random.uniform(0, self.cfg.delay_jitter_seconds))
+                return resp.text
+            except BlockedError:
+                raise
+            except (httpx.HTTPError, UnsafeUrlError) as exc:
+                last_exc = exc
+                time.sleep(2 ** attempt)
+        raise RuntimeError(f"failed after retries: {url}: {last_exc}")
+
+    def collect(self, pages: int, progress=print) -> Iterator[RawPost]:
+        for page in range(1, pages + 1):
+            html = self._get(LIST_URL.format(gallery_id=self.gallery_id, page=page))
+            listed = parse_list_page(html)
+            progress(f"page {page}: {len(listed)} posts")
+            for item in listed:
+                post_html = self._get(
+                    POST_URL.format(gallery_id=self.gallery_id, post_no=item.post_no))
+                detail = parse_post_page(post_html, item.post_no)
+                yield RawPost(
+                    gallery_id=self.gallery_id, post_no=item.post_no,
+                    title=detail.title or item.title, body=detail.body,
+                    author=detail.author or item.author,
+                    created_at=detail.created_at or item.created_at,
+                    views=detail.views or item.views,
+                    recommend=detail.recommend or item.recommend,
+                    comments=detail.comments,
+                )
