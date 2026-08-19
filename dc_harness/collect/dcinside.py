@@ -20,7 +20,10 @@ LIST_URL = "https://gall.dcinside.com/board/lists/?id={gallery_id}&page={page}"
 POST_URL = "https://gall.dcinside.com/board/view/?id={gallery_id}&no={post_no}"
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
-BLOCK_MARKERS = ("captcha", "자동 접근", "보안을 위해")
+# 차단 인터스티셜은 작은 페이지에만 판정 — 정상 게시글 페이지(수백 KB)에는
+# 댓글 폼의 kcaptcha 히든 인풋이 항상 있으므로 bare "captcha"는 오탐.
+BLOCK_MARKERS = ("자동 접근", "보안을 위해")
+_BLOCK_PAGE_MAX_CHARS = 20000
 
 
 class BlockedError(RuntimeError):
@@ -129,8 +132,9 @@ class DcInsideCollector:
         for attempt in range(self.cfg.max_retries):
             try:
                 resp = self.client.get(url)
-                if resp.status_code in (403, 429) or any(
-                        m in resp.text for m in BLOCK_MARKERS):
+                marker_hit = (len(resp.text) < _BLOCK_PAGE_MAX_CHARS
+                              and any(m in resp.text for m in BLOCK_MARKERS))
+                if resp.status_code in (403, 429) or marker_hit:
                     raise BlockedError(
                         f"blocked by dcinside: {url} (status={resp.status_code})")
                 resp.raise_for_status()
