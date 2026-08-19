@@ -15,16 +15,16 @@ DC Inside 갤러리별 관심사·여론·트렌드·니즈(VOC)를 분석하는
     dch ingest --gallery crypto --file dump.jsonl # 파일 기반 대체 수집
     dch report --gallery crypto --days 7          # 리포트 재생성
 
-### DC_COOKIES 얻는 법 (실측 2026-08)
+### 아카이브 갤러리와 댓글 (실측 2026-08)
 
-DC Inside는 **쿠키 없는 클라이언트에 오류 대신 과거 게시글을 200으로 반환하는 소프트 차단**을
-한다 (댓글 AJAX는 "정상적인 접근이 아닙니다"로 거부). 수집 시 "경고: ... 과거 데이터 반환"이
-뜨면 브라우저 쿠키가 필요하다:
-
-1. 브라우저에서 gall.dcinside.com 접속 (로그인 불필요, 한 번 페이지 열기)
-2. 개발자 도구(F12) 콘솔에 `document.cookie` 입력
-3. 출력 전체를 따옴표로 감싸 `export DC_COOKIES="..."` 로 제공
-4. 재수집: `dch collect --gallery stock --pages 1` — 같은 게시글은 upsert로 안전하게 갱신된다.
+- **아카이브 갤러리**: 폐쇄된 갤러리(예: `stock` 주식갤=200702~201109, `baseball_new`)는
+  오류 없이 200으로 **과거 글만** 반환한다. 페이지 제목이 `YYYYMM~YYYYMM 갤러리명`이면
+  아카이브 — 수집 시 알림이 뜬다. 살아있는 갤러리(예: `programming`)는 쿠키 없이도
+  최근 글이 수집된다.
+- **댓글**: 정적 HTML에 없고 `POST /board/comment/` AJAX로 로드된다. DC가 JS 생성
+  쿠키를 요구해 쿠키 없으면 거부되며, 이때는 댓글 없이 게시글만 수집된다(우아한 저하).
+  댓글이 필요하면 브라우저에서 gall.dcinside.com을 열고 개발자 도구 콘솔의
+  `document.cookie` 출력을 `export DC_COOKIES="..."`로 제공하라.
 
 ## 결과
 

@@ -160,18 +160,26 @@ def fetch_comments(client, gallery_id: str, post_no: int, e_s_n_o: str,
         return []
 
 
+_ARCHIVE_TITLE_RE = re.compile(r"<title>\s*(\d{6})~(\d{6})\s")
+
+
+def archive_range(html: str) -> str | None:
+    """아카이브 갤러리 판별: 페이지 제목이 'YYYYMM~YYYYMM 갤러리명' 형태면 폐쇄/아카이브.
+    (실측 2026-08: stock=200702~201109, baseball_new=201002~201204 — 오류 없이 과거글만 반환됨)"""
+    m = _ARCHIVE_TITLE_RE.search(html)
+    return f"{m.group(1)}~{m.group(2)}" if m else None
+
+
 def stale_list_warning(listed: list[ListedPost], max_age_days: int = 7) -> str | None:
-    """DC 소프트 차단 감지: 쿠키 없으면 현재글 대신 과거 데이터를 200으로 준다(실측 2026-08).
-    목록 대부분이 오래된 글이면 경고를 반환한다."""
+    """목록 대부분이 오래된 글이면 알림 — 아카이브 갤러리이거나 과거 데이터 수집 중일 수 있음."""
     dated = [p for p in listed if p.created_at is not None]
     if not dated:
         return None
     cutoff = datetime.now() - timedelta(days=max_age_days)
     stale = sum(1 for p in dated if p.created_at < cutoff)
     if stale / len(dated) >= 0.9:
-        return (f"경고: 목록 {len(dated)}건 중 {stale}건이 {max_age_days}일보다 오래된 글 — "
-                "DC 소프트 차단(과거 데이터 반환) 가능성. 브라우저 쿠키를 DC_COOKIES 환경변수로 "
-                "제공하면 현재 글이 수집된다.")
+        return (f"알림: 목록 {len(dated)}건 중 {stale}건이 {max_age_days}일보다 오래된 글 — "
+                "아카이브 갤러리이거나 과거 데이터를 수집 중입니다.")
     return None
 
 
@@ -214,6 +222,9 @@ class DcInsideCollector:
     def collect(self, pages: int, progress=print) -> Iterator[RawPost]:
         for page in range(1, pages + 1):
             html = self._get(LIST_URL.format(gallery_id=self.gallery_id, page=page))
+            archived = archive_range(html)
+            if archived:
+                progress(f"알림: 아카이브 갤러리({archived}) — 과거 글만 수집됩니다.")
             listed = parse_list_page(html)
             progress(f"page {page}: {len(listed)} posts")
             warn = stale_list_warning(listed)
