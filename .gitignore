@@ -8,3 +8,4 @@ data/
 reports/
 .pytest_cache/
 .ruff_cache/
+.mimosa/
