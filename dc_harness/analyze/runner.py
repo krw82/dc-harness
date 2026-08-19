@@ -20,19 +20,24 @@ class Analyzer:
             corpus = "\n\n".join(render_post_text(p) for p in chunk)
             user = (f"{kind.instruction}\n\n출력 스키마(JSON):\n{kind.schema_hint}\n\n"
                     f"=== 데이터 ===\n{corpus}")
-            try:
-                result = self.llm.chat_json(kind.system, user)
-                results.append(result)
-                self.store.log_llm_call(  # I5: 모든 호출 감사
-                    run_id, kind.name, kind.system, user,
-                    json.dumps(result, ensure_ascii=False),
-                    getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
-            except Exception as exc:
+            result = None
+            for attempt in range(2):  # 타임아웃 등 일시 실패 1회 재시도 (실측: 서버 혼잡 잦음)
+                try:
+                    result = self.llm.chat_json(kind.system, user)
+                    self.store.log_llm_call(  # I5: 모든 호출 감사
+                        run_id, kind.name, kind.system, user,
+                        json.dumps(result, ensure_ascii=False),
+                        getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
+                    break
+                except Exception as exc:
+                    self.store.log_llm_call(  # 실패한 호출도 감사 대상
+                        run_id, kind.name, kind.system, user,
+                        f"(failed attempt {attempt + 1}) {type(exc).__name__}: {exc}",
+                        getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
+            if result is None:
                 failed += 1
-                self.store.log_llm_call(  # 실패한 호출도 감사 대상
-                    run_id, kind.name, kind.system, user,
-                    f"(failed) {type(exc).__name__}: {exc}",
-                    getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
+            else:
+                results.append(result)
         return results, failed
 
     def run(self, gallery_id: str, start: date, end: date, kinds: list[str],

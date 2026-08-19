@@ -243,6 +243,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None, *,
          llm_factory: Callable[[Config], LlmClient] | None = None) -> int:
+    # 배경 실행 환경(LANG 미설정)에서 ascii 스트림이 한국어 출력/로그를 죽이지 않게 강제
+    for stream in (sys.stdout, sys.stderr):
+        if stream and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
     cfg = load_config(args.config)
     func = args.func

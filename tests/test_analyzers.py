@@ -78,13 +78,36 @@ def test_runner_map_reduce_with_stub(tmp_path: Path):
         assert "topics" in saved
 
 
-def test_runner_isolates_chunk_failure(tmp_path: Path):
+def test_runner_isolates_permanently_failing_chunk(tmp_path: Path):
     with Store(tmp_path / "t.db") as store:
         for no in (1, 2, 3, 4, 5, 6):
             store.upsert_post(make_post(no))
-        stub = StubLlm({"topics": []}, fail_first=1)  # 첫 청크 실패, 이후 성공
+
+        class AlwaysFail:
+            model = "stub"
+
+            def chat_json(self, system, user, max_retries=2):
+                raise ValueError("server busy")
+
+        stub = AlwaysFail()
         run_id, results, coverage = Analyzer(store, stub).run(
             "crypto", date(2026, 8, 1), date(2026, 8, 31), ["topics"], max_chars=300)
         assert run_id > 0
-        assert coverage["chunks_failed"] == 1
+        assert coverage["chunks_failed"] == coverage["chunks_total"] > 0
         assert results["topics"] == {"topics": []}
+        # 청크당 2회(초기+재시도) 시도가 감사 로그에 기록된다
+        calls = store.conn.execute("SELECT COUNT(*) c FROM llm_calls").fetchone()["c"]
+        assert calls == coverage["chunks_total"] * 2
+
+
+def test_runner_retry_recovers_transient_failure(tmp_path: Path):
+    with Store(tmp_path / "t.db") as store:
+        for no in (1, 2, 3, 4):
+            store.upsert_post(make_post(no))
+        stub = StubLlm({"topics": [{"label": "전망", "post_nos": [1],
+                                    "keywords": [], "snippet": ""}]}, fail_first=1)
+        run_id, results, coverage = Analyzer(store, stub).run(
+            "crypto", date(2026, 8, 1), date(2026, 8, 31), ["topics"], max_chars=300)
+        assert run_id > 0
+        assert coverage["chunks_failed"] == 0  # 재시도로 회복
+        assert results["topics"]["topics"][0]["label"] == "전망"
