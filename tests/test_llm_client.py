@@ -55,6 +55,35 @@ class FakeInner:
         self.chat.completions = FakeCompletions(replies)
 
 
+class StreamEvent:
+    def __init__(self, text: str):
+        delta, choice = _Msg(), _Msg()
+        delta.content = text
+        choice.delta = delta
+        self.choices = [choice]
+
+
+class FakeStreamCompletions:
+    def __init__(self, replies: list[list[str]]):
+        self.replies = list(replies)
+
+    def create(self, **kwargs):
+        events = [StreamEvent(t) for t in self.replies.pop(0)]
+        return iter(events)
+
+
+def make_stream_client(chunks: list[str]) -> LlmClient:
+    inner = type("M", (), {})
+    inner.chat = type("M", (), {})
+    inner.chat.completions = FakeStreamCompletions([chunks])
+    return LlmClient("https://93.184.216.34/v1", "m", "fake-key", inner=inner)
+
+
+def test_chat_json_collects_streaming_events():
+    client = make_stream_client(['{"ok"', ": ", "true}"])
+    assert client.chat_json("sys", "user") == {"ok": True}
+
+
 def make_client(replies: list[str]) -> LlmClient:
     return LlmClient("https://93.184.216.34/v1", "m", "fake-key", inner=FakeInner(replies))
 

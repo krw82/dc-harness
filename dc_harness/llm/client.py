@@ -57,8 +57,8 @@ class LlmClient:
         for _attempt in range(max_retries + 1):
             response = self.inner.chat.completions.create(
                 model=self.model, messages=messages, temperature=self.temperature,
-                stream=False)
-            content = response.choices[0].message.content or ""
+                stream=True)
+            content = self._collect(response)
             try:
                 return extract_json(content)
             except LlmJsonError as exc:
@@ -69,3 +69,16 @@ class LlmClient:
                      "지금 응답은 유효한 JSON이 아니었다. 설명 없이 요청된 JSON 객체만 출력해라."},
                 ]
         raise last_error  # type: ignore[misc]
+
+    @staticmethod
+    def _collect(response) -> str:
+        """스트리밍 응답을 모은다. 토큰이 계속 흐르므로 긴 생성도 타임아웃되지 않는다.
+        테스트 스텁처럼 완성된 응답 객체(.choices)가 오면 그대로 사용."""
+        if hasattr(response, "choices"):
+            return response.choices[0].message.content or ""
+        parts: list[str] = []
+        for event in response:
+            if getattr(event, "choices", None) and event.choices[0].delta \
+                    and event.choices[0].delta.content:
+                parts.append(event.choices[0].delta.content)
+        return "".join(parts)
