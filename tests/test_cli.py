@@ -68,3 +68,23 @@ def test_collect_missing_pages_ok(tmp_path: Path):
     # collect는 실네트워크를 쓰므로 CI에서는 페이지 0으로 스킵만 확인
     assert main(["collect", "--gallery", "crypto", "--pages", "0",
                  "--db", str(tmp_path / "dch.db")]) == 0
+
+
+class FailingLlm:
+    model = "stub"
+
+    def __init__(self, cfg):
+        pass
+
+    def chat_json(self, system, user, max_retries=2):
+        raise ValueError("invalid api key")
+
+
+def test_analyze_all_chunks_failed_exits_nonzero(tmp_path: Path, capsys):
+    fixture = _shift_fixture_dates(tmp_path)
+    db = tmp_path / "dch.db"
+    main(["ingest", "--gallery", "crypto", "--file", str(fixture), "--db", str(db)])
+    rc = main(["analyze", "--gallery", "crypto", "--days", "7", "--db", str(db),
+               "--kinds", "topics"], llm_factory=FailingLlm)
+    assert rc == 1
+    assert "모든 LLM 청크가 실패" in capsys.readouterr().err

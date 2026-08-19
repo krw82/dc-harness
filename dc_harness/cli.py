@@ -63,8 +63,9 @@ def _cmd_ingest(args, cfg: Config) -> int:
 
 
 def _analyze_period(store: Store, analyzer: Analyzer, trender: TrendAnalyzer | None,
-                    gallery: str, start: date, end: date, kinds: list[str]) -> dict[str, dict]:
-    run_id, results, _coverage = analyzer.run(gallery, start, end, kinds)
+                    gallery: str, start: date, end: date,
+                    kinds: list[str]) -> tuple[dict[str, dict], dict]:
+    run_id, results, coverage = analyzer.run(gallery, start, end, kinds)
     if run_id > 0:
         from .analyze.kinds import PROMPT_VERSION
         from .ontology.materialize import materialize
@@ -77,7 +78,7 @@ def _analyze_period(store: Store, analyzer: Analyzer, trender: TrendAnalyzer | N
             results["trends"] = trender.diff(
                 gallery, prev, {k: v for k, v in results.items() if k != "trends"},
                 f"{prev_start}~{prev_end}", f"{start}~{end}")
-    return results
+    return results, coverage
 
 
 def _cmd_analyze(args, cfg: Config, llm_factory=None) -> int:
@@ -86,8 +87,15 @@ def _cmd_analyze(args, cfg: Config, llm_factory=None) -> int:
         factory = llm_factory or _make_llm
         analyzer = Analyzer(store, factory(cfg))
         trender = TrendAnalyzer(factory(cfg))
-        results = _analyze_period(store, analyzer, trender, args.gallery,
-                                  start, end, args.kinds.split(","))
+        results, coverage = _analyze_period(store, analyzer, trender, args.gallery,
+                                            start, end, args.kinds.split(","))
+        total, failed = coverage.get("chunks_total", 0), coverage.get("chunks_failed", 0)
+        if total and failed == total:
+            print("오류: 모든 LLM 청크가 실패했습니다 — llm_calls 로그를 확인하세요 "
+                  "(API 키/엔드포인트 점검).", file=sys.stderr)
+            return 1
+        if failed:
+            print(f"경고: 청크 {failed}/{total} 실패 — 결과가 부분적입니다.", file=sys.stderr)
         print(f"analyzed {len(results)} kinds: {', '.join(results)}")
     return 0
 

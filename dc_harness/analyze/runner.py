@@ -27,8 +27,12 @@ class Analyzer:
                     run_id, kind.name, kind.system, user,
                     json.dumps(result, ensure_ascii=False),
                     getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
-            except Exception:
+            except Exception as exc:
                 failed += 1
+                self.store.log_llm_call(  # 실패한 호출도 감사 대상
+                    run_id, kind.name, kind.system, user,
+                    f"(failed) {type(exc).__name__}: {exc}",
+                    getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
         return results, failed
 
     def run(self, gallery_id: str, start: date, end: date, kinds: list[str],
