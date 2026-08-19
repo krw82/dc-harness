@@ -1,0 +1,287 @@
+# dc-harness 의미 계층 정의 — 유일한 원천. 규칙: CONVENTIONS.md 참조.
+version = 1
+
+[[object]]
+apiName = "Gallery"
+displayName = "갤러리"
+description = "DC Inside 개별 갤러리 (예: crypto)"
+pk = ["galleryId"]
+layer = "raw"
+table = ""
+  [[object.property]]
+  apiName = "galleryId"
+  type = "text"
+  description = "갤러리 식별자"
+
+[[object]]
+apiName = "Post"
+displayName = "게시글"
+description = "갤러리에 작성된 개별 게시글. 추천수·조회수 포함"
+pk = ["galleryId", "postNo"]
+layer = "raw"
+table = "posts"
+  [[object.property]]
+  apiName = "galleryId"
+  type = "text"
+  description = "소속 갤러리"
+  [[object.property]]
+  apiName = "postNo"
+  type = "integer"
+  description = "게시글 번호"
+  [[object.property]]
+  apiName = "title"
+  type = "text"
+  description = "제목"
+  [[object.property]]
+  apiName = "body"
+  type = "text"
+  description = "본문"
+  [[object.property]]
+  apiName = "authorHash"
+  type = "text"
+  description = "해시된 작성자 식별자(개인정보 비식별)"
+  [[object.property]]
+  apiName = "createdAt"
+  type = "datetime"
+  description = "작성 시각"
+  [[object.property]]
+  apiName = "views"
+  type = "integer"
+  description = "조회수"
+  [[object.property]]
+  apiName = "recommendCount"
+  type = "integer"
+  description = "추천수 — 커뮤니티 공감의 1차 신호"
+
+[[object]]
+apiName = "Comment"
+displayName = "댓글"
+description = "게시글에 달린 댓글. 추천/비추천 포함"
+pk = ["galleryId", "postNo", "seq"]
+layer = "raw"
+table = "comments"
+  [[object.property]]
+  apiName = "galleryId"
+  type = "text"
+  description = "소속 갤러리"
+  [[object.property]]
+  apiName = "postNo"
+  type = "integer"
+  description = "작성된 게시글 번호"
+  [[object.property]]
+  apiName = "seq"
+  type = "integer"
+  description = "댓글 순번"
+  [[object.property]]
+  apiName = "text"
+  type = "text"
+  description = "댓글 내용"
+  [[object.property]]
+  apiName = "recommendCount"
+  type = "integer"
+  description = "댓글 추천수"
+
+[[object]]
+apiName = "Author"
+displayName = "작성자"
+description = "해시된 게시 작성자. 링크 통해서만 탐색(직접 질의 미지원)"
+pk = ["authorHash"]
+layer = "raw"
+table = ""
+  [[object.property]]
+  apiName = "authorHash"
+  type = "text"
+  description = "솔트+닉네임 SHA-256 12자리"
+
+[[object]]
+apiName = "Topic"
+displayName = "토픽"
+description = "한 기간 갤러리에서 논의된 주제. LLM 추출 결과의 파생 객체"
+pk = ["topicId"]
+layer = "derived"
+table = "obj_topics"
+  [[object.property]]
+  apiName = "topicId"
+  type = "text"
+  description = "갤러리|기간|정규화 라벨 해시"
+  [[object.property]]
+  apiName = "label"
+  type = "text"
+  description = "토픽명"
+  [[object.property]]
+  apiName = "keywords"
+  type = "json"
+  description = "반복 키워드 목록"
+  [[object.property]]
+  apiName = "snippet"
+  type = "text"
+  description = "대표 문장"
+  [[object.property]]
+  apiName = "sourcePostNos"
+  type = "json"
+  description = "근거 게시글 번호 목록 (lineage)"
+  [[object.property]]
+  apiName = "runId"
+  type = "integer"
+  description = "생성한 분석 run (lineage)"
+  [[object.property]]
+  apiName = "promptVersion"
+  type = "text"
+  description = "사용된 분석 프롬프트 버전 (lineage)"
+
+[[object]]
+apiName = "Entity"
+displayName = "언급 대상"
+description = "인물/종목/제품/브랜드 등 언급 대상의 기간별 여론 집계"
+pk = ["entityId"]
+layer = "derived"
+table = "obj_entities"
+  [[object.property]]
+  apiName = "entityId"
+  type = "text"
+  description = "정규화 이름"
+  [[object.property]]
+  apiName = "displayName"
+  type = "text"
+  description = "표기 이름"
+  [[object.property]]
+  apiName = "entityType"
+  type = "text"
+  description = "인물|종목|제품|브랜드|기타"
+  [[object.property]]
+  apiName = "mentions"
+  type = "integer"
+  description = "기간 내 언급 수"
+  [[object.property]]
+  apiName = "sentiment"
+  type = "text"
+  description = "긍정|부정|mixed|중립"
+  [[object.property]]
+  apiName = "runId"
+  type = "integer"
+  description = "lineage"
+  [[object.property]]
+  apiName = "promptVersion"
+  type = "text"
+  description = "lineage"
+
+[[object]]
+apiName = "Issue"
+displayName = "이슈"
+description = "찬반 여론이 갈리는 쟁점과 그 분포"
+pk = ["issueId"]
+layer = "derived"
+table = "obj_issues"
+  [[object.property]]
+  apiName = "issueId"
+  type = "text"
+  description = "갤러리|기간|정규화 라벨 해시"
+  [[object.property]]
+  apiName = "label"
+  type = "text"
+  description = "이슈명"
+  [[object.property]]
+  apiName = "proCount"
+  type = "integer"
+  description = "찬성 발언 수"
+  [[object.property]]
+  apiName = "conCount"
+  type = "integer"
+  description = "반대 발언 수"
+  [[object.property]]
+  apiName = "neutralCount"
+  type = "integer"
+  description = "중립 발언 수"
+  [[object.property]]
+  apiName = "quotes"
+  type = "json"
+  description = "대표 인용(post_no 포함)"
+  [[object.property]]
+  apiName = "runId"
+  type = "integer"
+  description = "lineage"
+  [[object.property]]
+  apiName = "promptVersion"
+  type = "text"
+  description = "lineage"
+
+[[object]]
+apiName = "Voice"
+displayName = "목소리"
+description = "불만(painpoint)/바람(wish)/아이디어(idea) — 원문 인용 동반"
+pk = ["voiceId"]
+layer = "derived"
+table = "obj_voices"
+  [[object.property]]
+  apiName = "voiceId"
+  type = "text"
+  description = "kind|정규화 텍스트 해시"
+  [[object.property]]
+  apiName = "kind"
+  type = "text"
+  description = "painpoint|wish|idea"
+  [[object.property]]
+  apiName = "text"
+  type = "text"
+  description = "요약 한 줄"
+  [[object.property]]
+  apiName = "quote"
+  type = "text"
+  description = "원문 인용"
+  [[object.property]]
+  apiName = "count"
+  type = "integer"
+  description = "유사 언급 빈도"
+  [[object.property]]
+  apiName = "sourcePostNo"
+  type = "integer"
+  description = "근거 게시글 번호 (lineage)"
+  [[object.property]]
+  apiName = "runId"
+  type = "integer"
+  description = "lineage"
+  [[object.property]]
+  apiName = "promptVersion"
+  type = "text"
+  description = "lineage"
+
+[[link]]
+apiName = "WrittenOn"
+displayName = "작성된 게시글이다"
+description = "댓글이 달린 게시글"
+fromObject = "Comment"
+toObject = "Post"
+cardinality = "N:1"
+
+[[link]]
+apiName = "BelongsTo"
+displayName = "소속 갤러리이다"
+description = "게시글의 소속 갤러리"
+fromObject = "Post"
+toObject = "Gallery"
+cardinality = "N:1"
+
+[[link]]
+apiName = "AuthoredBy"
+displayName = "작성자이다"
+description = "게시글 작성자(해시)"
+fromObject = "Post"
+toObject = "Author"
+cardinality = "N:1"
+
+[[link]]
+apiName = "Discusses"
+displayName = "논의된 토픽이다"
+description = "게시글-토픽 연결. 접합 테이블 obj_post_topics"
+fromObject = "Post"
+toObject = "Topic"
+cardinality = "N:M"
+via = "obj_post_topics"
+
+[[link]]
+apiName = "Evidences"
+displayName = "근거 게시글이다"
+description = "목소리의 근거가 된 게시글"
+fromObject = "Voice"
+toObject = "Post"
+cardinality = "N:1"
