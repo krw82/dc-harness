@@ -27,11 +27,191 @@ CREATE TABLE IF NOT EXISTS analyses(
   run_id INTEGER NOT NULL, kind TEXT NOT NULL, gallery_id TEXT NOT NULL,
   period_start TEXT NOT NULL, period_end TEXT NOT NULL, result TEXT NOT NULL,
   PRIMARY KEY(run_id, kind));
+CREATE TABLE IF NOT EXISTS llm_calls(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER, kind TEXT NOT NULL,
+  system_text TEXT NOT NULL, user_text TEXT NOT NULL, response_text TEXT NOT NULL,
+  model TEXT NOT NULL, prompt_version TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')));
+CREATE TABLE IF NOT EXISTS obj_topics(
+  run_id INTEGER NOT NULL, gallery_id TEXT NOT NULL, topic_id TEXT NOT NULL,
+  period_start TEXT NOT NULL, period_end TEXT NOT NULL, label TEXT NOT NULL,
+  snippet TEXT NOT NULL DEFAULT '', keywords TEXT NOT NULL DEFAULT '[]',
+  source_post_nos TEXT NOT NULL DEFAULT '[]', prompt_version TEXT NOT NULL,
+  PRIMARY KEY(run_id, topic_id));
+CREATE TABLE IF NOT EXISTS obj_entities(
+  run_id INTEGER NOT NULL, gallery_id TEXT NOT NULL, entity_id TEXT NOT NULL,
+  period_start TEXT NOT NULL, period_end TEXT NOT NULL, display_name TEXT NOT NULL,
+  entity_type TEXT NOT NULL DEFAULT '기타', mentions INTEGER NOT NULL DEFAULT 0,
+  sentiment TEXT NOT NULL DEFAULT '중립', reason TEXT NOT NULL DEFAULT '',
+  prompt_version TEXT NOT NULL, PRIMARY KEY(run_id, entity_id));
+CREATE TABLE IF NOT EXISTS obj_issues(
+  run_id INTEGER NOT NULL, gallery_id TEXT NOT NULL, issue_id TEXT NOT NULL,
+  period_start TEXT NOT NULL, period_end TEXT NOT NULL, label TEXT NOT NULL,
+  pro_count INTEGER NOT NULL DEFAULT 0, con_count INTEGER NOT NULL DEFAULT 0,
+  neutral_count INTEGER NOT NULL DEFAULT 0, quotes TEXT NOT NULL DEFAULT '[]',
+  prompt_version TEXT NOT NULL, PRIMARY KEY(run_id, issue_id));
+CREATE TABLE IF NOT EXISTS obj_voices(
+  run_id INTEGER NOT NULL, gallery_id TEXT NOT NULL, voice_id TEXT NOT NULL,
+  period_start TEXT NOT NULL, period_end TEXT NOT NULL, kind TEXT NOT NULL,
+  text TEXT NOT NULL, quote TEXT NOT NULL DEFAULT '', count INTEGER NOT NULL DEFAULT 1,
+  source_post_no INTEGER, prompt_version TEXT NOT NULL,
+  PRIMARY KEY(run_id, voice_id));
+CREATE TABLE IF NOT EXISTS obj_post_topics(
+  run_id INTEGER NOT NULL, gallery_id TEXT NOT NULL, post_no INTEGER NOT NULL,
+  topic_id TEXT NOT NULL, PRIMARY KEY(run_id, gallery_id, post_no, topic_id));
 """
 
 
+# --- 파생 객체(온톨로지) 계층: 테이블별 함수, execute 호출점은 정적 리터럴만 사용 (I2). ---
+
+def _snapshot_obj_topics(conn: sqlite3.Connection, run_id: int, rows: list[dict]) -> int:
+    conn.execute("DELETE FROM obj_topics WHERE run_id=?", (run_id,))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO obj_topics(run_id, gallery_id, topic_id, period_start, period_end, label, snippet, keywords, source_post_nos, prompt_version) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (run_id, r.get("gallery_id"), r.get("topic_id"), r.get("period_start"),
+             r.get("period_end"), r.get("label"), r.get("snippet"), r.get("keywords"),
+             r.get("source_post_nos"), r.get("prompt_version")))
+    return len(rows)
+
+
+def _snapshot_obj_entities(conn: sqlite3.Connection, run_id: int, rows: list[dict]) -> int:
+    conn.execute("DELETE FROM obj_entities WHERE run_id=?", (run_id,))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO obj_entities(run_id, gallery_id, entity_id, period_start, period_end, display_name, entity_type, mentions, sentiment, reason, prompt_version) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (run_id, r.get("gallery_id"), r.get("entity_id"), r.get("period_start"),
+             r.get("period_end"), r.get("display_name"), r.get("entity_type"),
+             r.get("mentions"), r.get("sentiment"), r.get("reason"),
+             r.get("prompt_version")))
+    return len(rows)
+
+
+def _snapshot_obj_issues(conn: sqlite3.Connection, run_id: int, rows: list[dict]) -> int:
+    conn.execute("DELETE FROM obj_issues WHERE run_id=?", (run_id,))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO obj_issues(run_id, gallery_id, issue_id, period_start, period_end, label, pro_count, con_count, neutral_count, quotes, prompt_version) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (run_id, r.get("gallery_id"), r.get("issue_id"), r.get("period_start"),
+             r.get("period_end"), r.get("label"), r.get("pro_count"),
+             r.get("con_count"), r.get("neutral_count"), r.get("quotes"),
+             r.get("prompt_version")))
+    return len(rows)
+
+
+def _snapshot_obj_voices(conn: sqlite3.Connection, run_id: int, rows: list[dict]) -> int:
+    conn.execute("DELETE FROM obj_voices WHERE run_id=?", (run_id,))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO obj_voices(run_id, gallery_id, voice_id, period_start, period_end, kind, text, quote, count, source_post_no, prompt_version) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (run_id, r.get("gallery_id"), r.get("voice_id"), r.get("period_start"),
+             r.get("period_end"), r.get("kind"), r.get("text"), r.get("quote"),
+             r.get("count"), r.get("source_post_no"), r.get("prompt_version")))
+    return len(rows)
+
+
+def _snapshot_obj_post_topics(conn: sqlite3.Connection, run_id: int,
+                              rows: list[dict]) -> int:
+    conn.execute("DELETE FROM obj_post_topics WHERE run_id=?", (run_id,))
+    for r in rows:
+        conn.execute(
+            "INSERT INTO obj_post_topics(run_id, gallery_id, post_no, topic_id) VALUES(?,?,?,?)",
+            (run_id, r.get("gallery_id"), r.get("post_no"), r.get("topic_id")))
+    return len(rows)
+
+
+_SNAPSHOTTERS = {
+    "obj_topics": _snapshot_obj_topics,
+    "obj_entities": _snapshot_obj_entities,
+    "obj_issues": _snapshot_obj_issues,
+    "obj_voices": _snapshot_obj_voices,
+    "obj_post_topics": _snapshot_obj_post_topics,
+}
+
+
+def _latest_run_obj_topics(conn: sqlite3.Connection, gallery_id: str,
+                           start: date, end: date) -> int | None:
+    row = conn.execute(
+        "SELECT MAX(run_id) AS m FROM obj_topics WHERE gallery_id=? AND period_start=? AND period_end=?",
+        (gallery_id, start.isoformat(), end.isoformat())).fetchone()
+    return row["m"] if row and row["m"] is not None else None
+
+
+def _latest_run_obj_entities(conn: sqlite3.Connection, gallery_id: str,
+                             start: date, end: date) -> int | None:
+    row = conn.execute(
+        "SELECT MAX(run_id) AS m FROM obj_entities WHERE gallery_id=? AND period_start=? AND period_end=?",
+        (gallery_id, start.isoformat(), end.isoformat())).fetchone()
+    return row["m"] if row and row["m"] is not None else None
+
+
+def _latest_run_obj_issues(conn: sqlite3.Connection, gallery_id: str,
+                           start: date, end: date) -> int | None:
+    row = conn.execute(
+        "SELECT MAX(run_id) AS m FROM obj_issues WHERE gallery_id=? AND period_start=? AND period_end=?",
+        (gallery_id, start.isoformat(), end.isoformat())).fetchone()
+    return row["m"] if row and row["m"] is not None else None
+
+
+def _latest_run_obj_voices(conn: sqlite3.Connection, gallery_id: str,
+                           start: date, end: date) -> int | None:
+    row = conn.execute(
+        "SELECT MAX(run_id) AS m FROM obj_voices WHERE gallery_id=? AND period_start=? AND period_end=?",
+        (gallery_id, start.isoformat(), end.isoformat())).fetchone()
+    return row["m"] if row and row["m"] is not None else None
+
+
+_LATEST_RUNNERS = {
+    "obj_topics": _latest_run_obj_topics,
+    "obj_entities": _latest_run_obj_entities,
+    "obj_issues": _latest_run_obj_issues,
+    "obj_voices": _latest_run_obj_voices,
+}
+
+
+def _fetch_obj_topics(conn: sqlite3.Connection, run_id: int, limit: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM obj_topics WHERE run_id=? LIMIT ?", (run_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _fetch_obj_entities(conn: sqlite3.Connection, run_id: int, limit: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM obj_entities WHERE run_id=? LIMIT ?", (run_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _fetch_obj_issues(conn: sqlite3.Connection, run_id: int, limit: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM obj_issues WHERE run_id=? LIMIT ?", (run_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _fetch_obj_voices(conn: sqlite3.Connection, run_id: int, limit: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM obj_voices WHERE run_id=? LIMIT ?", (run_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _fetch_obj_post_topics(conn: sqlite3.Connection, run_id: int, limit: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM obj_post_topics WHERE run_id=? LIMIT ?", (run_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+_FETCHERS = {
+    "obj_topics": _fetch_obj_topics,
+    "obj_entities": _fetch_obj_entities,
+    "obj_issues": _fetch_obj_issues,
+    "obj_voices": _fetch_obj_voices,
+    "obj_post_topics": _fetch_obj_post_topics,
+}
+
+
 class Store:
-    """SQLite 저장소. 모든 쿼리는 정적 리터럴 + 파라미터 바인딩만 사용한다."""
+    """SQLite 저장소. 모든 쿼리는 execute 호출점의 정적 리터럴 + 파라미터 바인딩."""
+
+    OBJECT_TABLES = frozenset(_SNAPSHOTTERS)
 
     def __init__(self, db_path: Path):
         db_path = Path(db_path)
@@ -133,3 +313,32 @@ class Store:
             (gallery_id, start.isoformat(), end.isoformat()),
         ).fetchall()
         return {row["kind"]: json.loads(row["result"]) for row in rows}
+
+    def log_llm_call(self, run_id: int | None, kind: str, system: str, user: str,
+                     response: str, model: str, prompt_version: str) -> None:
+        self.conn.execute(
+            "INSERT INTO llm_calls(run_id, kind, system_text, user_text, response_text, model, prompt_version) VALUES(?,?,?,?,?,?,?)",
+            (run_id, kind, system, user, response, model, prompt_version))
+        self.conn.commit()
+
+    def snapshot_rows(self, table: str, run_id: int, rows: list[dict]) -> int:
+        """run 단위 SNAPSHOT: 해당 run 기존 행 삭제 후 재작성 (I2)."""
+        fn = _SNAPSHOTTERS.get(table)
+        if fn is None:
+            raise ValueError(f"not an object table: {table}")
+        written = fn(self.conn, run_id, rows)
+        self.conn.commit()
+        return written
+
+    def latest_object_run(self, table: str, gallery_id: str,
+                          start: date, end: date) -> int | None:
+        fn = _LATEST_RUNNERS.get(table)
+        if fn is None:
+            raise ValueError(f"not an object table: {table}")
+        return fn(self.conn, gallery_id, start, end)
+
+    def fetch_object_rows(self, table: str, run_id: int, limit: int = 50) -> list[dict]:
+        fn = _FETCHERS.get(table)
+        if fn is None:
+            raise ValueError(f"not an object table: {table}")
+        return fn(self.conn, run_id, limit)
