@@ -15,7 +15,7 @@ def clean_text(raw: str) -> str:
 
 
 def author_hash(nick: str, salt: str) -> str:
-    return hashlib.sha256(f"{salt}\x00{nick}".encode("utf-8")).hexdigest()[:12]
+    return hashlib.sha256(f"{salt}\x00{nick}".encode()).hexdigest()[:12]
 
 
 def normalize_label(s: str) -> str:

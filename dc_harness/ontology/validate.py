@@ -45,18 +45,18 @@ def collect_errors(defn: OntologyDef) -> list[str]:
                     errors.append(f"V5 derived object {o.apiName} lacks provenance "
                                   f"property: {required}")
 
-    for l in defn.links:
-        if not _PASCAL.match(l.apiName):
-            errors.append(f"V1 link apiName must be PascalCase: {l.apiName}")
-        if l.cardinality not in _CARDINALITIES:
-            errors.append(f"V6 invalid cardinality on {l.apiName}: {l.cardinality}")
-        for end in (l.fromObject, l.toObject):
+    for link in defn.links:
+        if not _PASCAL.match(link.apiName):
+            errors.append(f"V1 link apiName must be PascalCase: {link.apiName}")
+        if link.cardinality not in _CARDINALITIES:
+            errors.append(f"V6 invalid cardinality on {link.apiName}: {link.cardinality}")
+        for end in (link.fromObject, link.toObject):
             if end not in seen_names:
-                errors.append(f"V3 link {l.apiName} references unknown object: {end}")
-        if l.cardinality == "N:M" and not l.via:
-            errors.append(f"V3 N:M link {l.apiName} must declare via (junction table)")
-        if l.cardinality != "N:M" and l.via:
-            errors.append(f"V3 via is only allowed for N:M link: {l.apiName}")
+                errors.append(f"V3 link {link.apiName} references unknown object: {end}")
+        if link.cardinality == "N:M" and not link.via:
+            errors.append(f"V3 N:M link {link.apiName} must declare via (junction table)")
+        if link.cardinality != "N:M" and link.via:
+            errors.append(f"V3 via is only allowed for N:M link: {link.apiName}")
     return errors
 
 

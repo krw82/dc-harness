@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-08-19T11:28:07.457Z",
+  "sessionId": "sess_212ef077-b3f1-49eb-ae90-05d5e30e33d6",
+  "event": "PostToolUse",
+  "toolName": "Edit",
+  "file": "pyproject.toml",
+  "outcome": "clear",
+  "coverage": "complete",
+  "findingCount": 0,
+  "durationMs": 1,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

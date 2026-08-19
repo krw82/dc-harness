@@ -1,7 +1,6 @@
 import pytest
 
-from dc_harness.ontology.defn import (LinkDef, ObjectDef, OntologyDef,
-                                      PropertyDef, load_ontology)
+from dc_harness.ontology.defn import LinkDef, ObjectDef, OntologyDef, PropertyDef, load_ontology
 from dc_harness.ontology.validate import OntologyValidationError, collect_errors, validate
 
 

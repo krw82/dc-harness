@@ -54,5 +54,5 @@ def load_ontology(path: Path | None = None) -> OntologyDef:
             layer=o.get("layer", "raw"), table=o.get("table", ""),
             properties=[PropertyDef(**p) for p in o.get("property", [])],
         ) for o in data.get("object", [])],
-        links=[LinkDef(**l) for l in data.get("link", [])],
+        links=[LinkDef(**link) for link in data.get("link", [])],
     )

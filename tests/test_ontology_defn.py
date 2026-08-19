@@ -14,10 +14,10 @@ def test_load_default_ontology():
 
 def test_links_and_cardinality():
     defn = load_ontology(None)
-    link_names = {l.apiName for l in defn.links}
+    link_names = {link.apiName for link in defn.links}
     assert link_names == {"WrittenOn", "BelongsTo", "AuthoredBy",
                           "Discusses", "Evidences"}
-    discusses = next(l for l in defn.links if l.apiName == "Discusses")
+    discusses = next(link for link in defn.links if link.apiName == "Discusses")
     assert discusses.cardinality == "N:M" and discusses.via == "obj_post_topics"
 
 

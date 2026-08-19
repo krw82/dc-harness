@@ -17,10 +17,10 @@ def ontology_summary(defn: OntologyDef) -> str:
         lines.append(f"- {o.apiName} ({o.displayName}): {o.description}"
                      f" [pk={','.join(o.pk)}, layer={o.layer}]")
     lines.append("=== 링크 ===")
-    for l in defn.links:
-        lines.append(f"- {l.fromObject} --{l.apiName}({l.displayName}, "
-                     f"{l.cardinality})--> {l.toObject}"
-                     + (f" via {l.via}" if l.via else ""))
+    for link in defn.links:
+        lines.append(f"- {link.fromObject} --{link.apiName}({link.displayName}, "
+                     f"{link.cardinality})--> {link.toObject}"
+                     + (f" via {link.via}" if link.via else ""))
     return "\n".join(lines)
 
 

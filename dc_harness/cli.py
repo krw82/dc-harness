@@ -148,6 +148,20 @@ def _cmd_ask(args, cfg: Config, llm_factory=None) -> int:
     return 0
 
 
+def _cmd_ontology(args, cfg: Config) -> int:
+    import dataclasses
+    import json as _json
+
+    from .ontology.ask import ontology_summary
+    from .ontology.defn import load_ontology
+    defn = load_ontology(None)
+    if args.json:
+        print(_json.dumps(dataclasses.asdict(defn), ensure_ascii=False, indent=2))
+    else:
+        print(ontology_summary(defn))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dch", description="DC Inside gallery opinion research harness")
@@ -209,6 +223,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ask.add_argument("question")
     p_ask.add_argument("--db", type=Path, default=Path("data/dch.db"))
     p_ask.set_defaults(func=_cmd_ask)
+
+    p_onto = sub.add_parser("ontology", help="온톨로지 정의 인쇄 (객체·링크)")
+    p_onto.add_argument("--json", action="store_true")
+    p_onto.set_defaults(func=_cmd_ontology)
     return parser
 
 
