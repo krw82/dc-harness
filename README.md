@@ -15,6 +15,17 @@ DC Inside 갤러리별 관심사·여론·트렌드·니즈(VOC)를 분석하는
     dch ingest --gallery crypto --file dump.jsonl # 파일 기반 대체 수집
     dch report --gallery crypto --days 7          # 리포트 재생성
 
+### DC_COOKIES 얻는 법 (실측 2026-08)
+
+DC Inside는 **쿠키 없는 클라이언트에 오류 대신 과거 게시글을 200으로 반환하는 소프트 차단**을
+한다 (댓글 AJAX는 "정상적인 접근이 아닙니다"로 거부). 수집 시 "경고: ... 과거 데이터 반환"이
+뜨면 브라우저 쿠키가 필요하다:
+
+1. 브라우저에서 gall.dcinside.com 접속 (로그인 불필요, 한 번 페이지 열기)
+2. 개발자 도구(F12) 콘솔에 `document.cookie` 입력
+3. 출력 전체를 따옴표로 감싸 `export DC_COOKIES="..."` 로 제공
+4. 재수집: `dch collect --gallery stock --pages 1` — 같은 게시글은 upsert로 안전하게 갱신된다.
+
 ## 결과
 
 `reports/<gallery>/<start>~<end>.md` (+ 동일 `.json`). 섹션: 요약/토픽/여론/엔티티/VOC/트렌드/인기 게시글/커버리지.

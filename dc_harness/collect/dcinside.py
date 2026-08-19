@@ -5,7 +5,7 @@ import re
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -160,6 +160,21 @@ def fetch_comments(client, gallery_id: str, post_no: int, e_s_n_o: str,
         return []
 
 
+def stale_list_warning(listed: list[ListedPost], max_age_days: int = 7) -> str | None:
+    """DC 소프트 차단 감지: 쿠키 없으면 현재글 대신 과거 데이터를 200으로 준다(실측 2026-08).
+    목록 대부분이 오래된 글이면 경고를 반환한다."""
+    dated = [p for p in listed if p.created_at is not None]
+    if not dated:
+        return None
+    cutoff = datetime.now() - timedelta(days=max_age_days)
+    stale = sum(1 for p in dated if p.created_at < cutoff)
+    if stale / len(dated) >= 0.9:
+        return (f"경고: 목록 {len(dated)}건 중 {stale}건이 {max_age_days}일보다 오래된 글 — "
+                "DC 소프트 차단(과거 데이터 반환) 가능성. 브라우저 쿠키를 DC_COOKIES 환경변수로 "
+                "제공하면 현재 글이 수집된다.")
+    return None
+
+
 class DcInsideCollector:
     def __init__(self, gallery_id: str, cfg: CollectConfig, cookies: str | None = None,
                  client: httpx.Client | None = None):
@@ -201,6 +216,9 @@ class DcInsideCollector:
             html = self._get(LIST_URL.format(gallery_id=self.gallery_id, page=page))
             listed = parse_list_page(html)
             progress(f"page {page}: {len(listed)} posts")
+            warn = stale_list_warning(listed)
+            if warn:
+                progress(warn)
             for item in listed:
                 try:
                     post_html = self._get(
