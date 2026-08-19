@@ -65,6 +65,10 @@ def _cmd_ingest(args, cfg: Config) -> int:
 def _analyze_period(store: Store, analyzer: Analyzer, trender: TrendAnalyzer | None,
                     gallery: str, start: date, end: date, kinds: list[str]) -> dict[str, dict]:
     run_id, results, _coverage = analyzer.run(gallery, start, end, kinds)
+    if run_id > 0:
+        from .analyze.kinds import PROMPT_VERSION
+        from .ontology.materialize import materialize
+        materialize(store, gallery, run_id, PROMPT_VERSION, start, end, results)
     results = dict(results)
     if run_id > 0 and trender is not None and len(results) >= 2:
         prev_start, prev_end = start - (end - start), start - timedelta(days=1)
