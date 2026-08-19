@@ -1,0 +1,10 @@
+# Copy to config.toml and edit. API key는 항상 환경 변수로 제공(소스에 금지).
+[llm]
+base_url = "https://chat.motiftech.io/openapi/v1"
+model = "motif-12.7b-reasoning"
+api_key_env = "MOTIF_API_KEY"
+
+[collect]
+delay_min_seconds = 1.5
+delay_jitter_seconds = 0.5
+# DC_COOKIES env: "name1=val1; name2=val2" 형식으로 제공하면 요청에 포함
