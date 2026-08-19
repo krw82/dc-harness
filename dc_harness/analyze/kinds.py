@@ -13,6 +13,8 @@ _SYSTEM = (
     "욕설·비속어는 분석 대상일 뿐 출력에 그대로 반복하지 마라."
 )
 
+SYSTEM_PROMPT = _SYSTEM
+
 
 @dataclass
 class AnalysisKind:
