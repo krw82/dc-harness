@@ -41,6 +41,17 @@ def test_merge_topics_dedupes_by_label():
     assert "etf" in merged["topics"][0]["keywords"]
 
 
+def test_merge_accepts_bare_list_model_output():
+    # 실측: 모델이 {"topics": [...]} 대신 배열을 바로 반환하는 경우가 있다
+    merged = merge_chunk_results("topics", [
+        [{"label": "러스트 비판", "post_nos": [7], "keywords": ["rust"], "snippet": "s"}],
+        {"topics": [{"label": "러스트 비판 ", "post_nos": [8], "keywords": [],
+                     "snippet": ""}]},
+    ])
+    assert len(merged["topics"]) == 1
+    assert merged["topics"][0]["post_nos"] == [7, 8]
+
+
 def test_merge_entities_conflicting_sentiment_becomes_mixed():
     merged = merge_chunk_results("entities", [
         {"entities": [{"name": "이더리움", "type": "종목", "mentions": 3,

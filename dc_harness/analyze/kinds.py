@@ -62,7 +62,32 @@ def _cap(items: list, limit: int) -> list:
     return items[:limit]
 
 
+_ARRAY_KEY_HINTS = (
+    ("topics", {"label", "post_nos", "keywords"}),
+    ("issues", {"issue", "pro", "con", "neutral", "stance"}),
+    ("entities", {"name", "mentions", "sentiment"}),
+    ("voices", {"kind", "quote", "painpoint", "wish"}),
+)
+
+
+def normalize_chunk_result(result: dict | list) -> dict:
+    """모델이 {"topics": [...]} 대신 배열이나 다른 모양으로 반환해도 표준 dict로 정규화."""
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, list):
+        keys: set[str] = set()
+        for item in result:
+            if isinstance(item, dict):
+                keys |= set(item.keys())
+        for array_key, hint in _ARRAY_KEY_HINTS:
+            if keys & hint:
+                return {array_key: [i for i in result if isinstance(i, dict)]}
+        return {}
+    return {}
+
+
 def merge_chunk_results(kind: str, results: list[dict]) -> dict:
+    results = [normalize_chunk_result(res) for res in results]
     if kind == "topics":
         by_label: dict[str, dict] = {}
         for res in results:
