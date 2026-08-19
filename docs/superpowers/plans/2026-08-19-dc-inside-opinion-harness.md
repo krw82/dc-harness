@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-19-dc-inside-opinion-harness-design.md`
 
+> **Phase 2 (온톨로지 계층):** `docs/superpowers/plans/2026-08-19-ontology-layer.md` — 본 계획의 `Analyzer.run`은 Phase 2 연계를 위해 `run_id`를 함께 반환하도록 아래에 반영되어 있다. 나머지 태스크는 무손상.
+
 ## Global Constraints
 
 - Python >= 3.11. 런타임 의존은 `openai`, `httpx`, `beautifulsoup4`만 허용.
@@ -1340,7 +1342,7 @@ git commit -m "feat: post rendering and char-budget chunker"
   - `@dataclass AnalysisKind(name: str, system: str, instruction: str, schema_hint: str)`
   - `KINDS: dict[str, AnalysisKind]` — `"topics" | "sentiment" | "entities" | "voices"` (trends는 Task 10)
   - `merge_chunk_results(kind: str, results: list[dict]) -> dict` — kind별 집계
-  - `class Analyzer(store: Store, llm: LlmClient)`: `run(gallery_id: str, start: date, end: date, kinds: list[str], max_chars: int = 12000) -> tuple[dict[str, dict], dict]` — 반환: (kind→결과, coverage). 내부에서 `start_run`/`save_analysis`/`finish_run` 수행. 청크 실패는 격리되어 coverage에 반영.
+  - `class Analyzer(store: Store, llm: LlmClient)`: `run(gallery_id: str, start: date, end: date, kinds: list[str], max_chars: int = 12000) -> tuple[int, dict[str, dict], dict]` — 반환: `(run_id, kind→결과, coverage)` (run_id는 Phase 2 materialize가 사용). 내부에서 `start_run`/`save_analysis`/`finish_run` 수행. 청크 실패는 격리되어 coverage에 반영.
 
 - [ ] **Step 1: 실패 테스트 `tests/test_analyzers.py`**
 
@@ -1416,7 +1418,7 @@ def test_runner_map_reduce_with_stub(tmp_path: Path):
         for no in (1, 2, 3, 4):
             store.upsert_post(make_post(no))
         stub = StubLlm({"topics": [{"label": "전망", "post_nos": [1], "keywords": ["롱"]}]})
-        results, coverage = Analyzer(store, stub).run(
+        run_id, results, coverage = Analyzer(store, stub).run(
             "crypto", date(2026, 8, 1), date(2026, 8, 31), ["topics"], max_chars=300)
         assert results["topics"]["topics"][0]["label"] == "전망"
         assert coverage["chunks_total"] == stub.calls
@@ -1430,7 +1432,7 @@ def test_runner_isolates_chunk_failure(tmp_path: Path):
         for no in (1, 2, 3, 4, 5, 6):
             store.upsert_post(make_post(no))
         stub = StubLlm({"topics": []}, fail_first=1)  # 첫 청크 실패, 이후 성공
-        results, coverage = Analyzer(store, stub).run(
+        run_id, results, coverage = Analyzer(store, stub).run(
             "crypto", date(2026, 8, 1), date(2026, 8, 31), ["topics"], max_chars=300)
         assert coverage["chunks_failed"] == 1
         assert results["topics"] == {"topics": []}
@@ -1609,10 +1611,10 @@ class Analyzer:
         return results, failed
 
     def run(self, gallery_id: str, start: date, end: date, kinds: list[str],
-            max_chars: int = 12000) -> tuple[dict[str, dict], dict]:
+            max_chars: int = 12000) -> tuple[int, dict[str, dict], dict]:
         posts = self.store.fetch_posts(gallery_id, start, end)
         if not posts:
-            return {}, {"chunks_total": 0, "chunks_failed": 0,
+            return -1, {}, {"chunks_total": 0, "chunks_failed": 0,
                         "posts_included": 0, "posts_total": 0}
         chunks = chunk_posts(posts, max_chars=max_chars)
         run_id = self.start_run_guarded(gallery_id)
@@ -1631,7 +1633,7 @@ class Analyzer:
             "posts_total": self.store.fetch_posts(gallery_id).__len__(),
         }
         self.store.finish_run(run_id, "done", coverage)
-        return results, coverage
+        return run_id, results, coverage
 
     def start_run_guarded(self, gallery_id: str) -> int:
         return self.store.start_run(gallery_id)
@@ -2108,7 +2110,7 @@ def _cmd_ingest(args, cfg: Config) -> int:
 
 def _analyze_period(store: Store, analyzer: Analyzer, trender: TrendAnalyzer | None,
                     gallery: str, start: date, end: date, kinds: list[str]) -> dict[str, dict]:
-    results, coverage = analyzer.run(gallery, start, end, kinds)
+    run_id, results, coverage = analyzer.run(gallery, start, end, kinds)
     results = dict(results)
     if trender is not None and len(results) >= 2:
         prev_start, prev_end = start - (end - start), start - timedelta(days=1)
