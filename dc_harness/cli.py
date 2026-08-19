@@ -116,6 +116,29 @@ def _cmd_run(args, cfg: Config, llm_factory=None) -> int:
     return _cmd_analyze(args, cfg, llm_factory) or _cmd_report(args, cfg, llm_factory)
 
 
+def _cmd_query(args, cfg: Config) -> int:
+    from .ontology.defn import load_ontology
+    from .ontology.query import print_rows, query_objects
+    start, end = _period(args.days)
+    with Store(Path(args.db)) as store:
+        rows = query_objects(store, load_ontology(None), args.object,
+                             args.gallery, start, end, args.limit)
+    print(print_rows(rows))
+    return 0
+
+
+def _cmd_show(args, cfg: Config) -> int:
+    from .ontology.query import show_post
+    with Store(Path(args.db)) as store:
+        detail = show_post(store, args.gallery, args.post)
+    post = detail["post"]
+    print(f"#{post.post_no} {post.title} (추천 {post.recommend})")
+    print(f"토픽: {', '.join(detail['topics']) or '(없음)'}")
+    for c in post.comments[:10]:
+        print(f"  - (추천{c.recommend}) {c.text}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dch", description="DC Inside gallery opinion research harness")
@@ -157,6 +180,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--kinds", default=DEFAULT_KINDS)
     p_run.add_argument("--out", type=Path, default=Path("reports"))
     p_run.set_defaults(func=_cmd_run)
+
+    p_query = sub.add_parser("query", help="온톨로지 객체 질의 (결정적, LLM 없음)")
+    p_query.add_argument("--object", required=True)
+    p_query.add_argument("--gallery", required=True)
+    p_query.add_argument("--days", type=int, default=7)
+    p_query.add_argument("--limit", type=int, default=20)
+    p_query.add_argument("--db", type=Path, default=Path("data/dch.db"))
+    p_query.set_defaults(func=_cmd_query)
+
+    p_show = sub.add_parser("show", help="게시글 상세 + 연결된 토픽")
+    p_show.add_argument("--gallery", required=True)
+    p_show.add_argument("--post", type=int, required=True)
+    p_show.add_argument("--db", type=Path, default=Path("data/dch.db"))
+    p_show.set_defaults(func=_cmd_show)
     return parser
 
 
