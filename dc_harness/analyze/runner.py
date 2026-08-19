@@ -1,0 +1,51 @@
+from __future__ import annotations
+
+from datetime import date
+
+from ..llm.chunker import chunk_posts, render_post_text
+from ..llm.client import LlmClient
+from ..store import Store
+from .kinds import KINDS, AnalysisKind, merge_chunk_results
+
+
+class Analyzer:
+    def __init__(self, store: Store, llm: LlmClient):
+        self.store, self.llm = store, llm
+
+    def _map(self, kind: AnalysisKind, chunks) -> tuple[list[dict], int]:
+        results: list[dict] = []
+        failed = 0
+        for chunk in chunks:
+            corpus = "\n\n".join(render_post_text(p) for p in chunk)
+            user = (f"{kind.instruction}\n\n출력 스키마(JSON):\n{kind.schema_hint}\n\n"
+                    f"=== 데이터 ===\n{corpus}")
+            try:
+                results.append(self.llm.chat_json(kind.system, user))
+            except Exception:
+                failed += 1
+        return results, failed
+
+    def run(self, gallery_id: str, start: date, end: date, kinds: list[str],
+            max_chars: int = 12000) -> tuple[int, dict[str, dict], dict]:
+        posts = self.store.fetch_posts(gallery_id, start, end)
+        if not posts:
+            return -1, {}, {"chunks_total": 0, "chunks_failed": 0,
+                            "posts_included": 0, "posts_total": 0}
+        chunks = chunk_posts(posts, max_chars=max_chars)
+        run_id = self.store.start_run(gallery_id)
+        results: dict[str, dict] = {}
+        total_failed = 0
+        for name in kinds:
+            kind = KINDS[name]
+            chunk_results, failed = self._map(kind, chunks)
+            total_failed += failed
+            results[name] = merge_chunk_results(name, chunk_results)
+            self.store.save_analysis(run_id, name, gallery_id, start, end, results[name])
+        coverage = {
+            "chunks_total": len(chunks) * len(kinds),
+            "chunks_failed": total_failed,
+            "posts_included": len(posts),
+            "posts_total": len(self.store.fetch_posts(gallery_id)),
+        }
+        self.store.finish_run(run_id, "done", coverage)
+        return run_id, results, coverage
