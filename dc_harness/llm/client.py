@@ -45,7 +45,9 @@ class LlmClient:
         self.model, self.temperature = model, temperature
         if inner is None:
             from openai import OpenAI
-            inner = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+            # SDK 내부 재시도 끔: 청크 실패 격리/repair는 상위(chat_json, runner)가 담당
+            inner = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout,
+                           max_retries=0)
         self.inner = inner
 
     def chat_json(self, system: str, user: str, max_retries: int = 2) -> dict | list:

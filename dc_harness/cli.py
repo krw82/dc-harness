@@ -64,8 +64,10 @@ def _cmd_ingest(args, cfg: Config) -> int:
 
 def _analyze_period(store: Store, analyzer: Analyzer, trender: TrendAnalyzer | None,
                     gallery: str, start: date, end: date,
-                    kinds: list[str]) -> tuple[dict[str, dict], dict]:
-    run_id, results, coverage = analyzer.run(gallery, start, end, kinds)
+                    kinds: list[str], max_chars: int = 12000
+                    ) -> tuple[dict[str, dict], dict]:
+    run_id, results, coverage = analyzer.run(gallery, start, end, kinds,
+                                             max_chars=max_chars)
     if run_id > 0:
         from .analyze.kinds import PROMPT_VERSION
         from .ontology.materialize import materialize
@@ -88,7 +90,8 @@ def _cmd_analyze(args, cfg: Config, llm_factory=None) -> int:
         analyzer = Analyzer(store, factory(cfg))
         trender = TrendAnalyzer(factory(cfg))
         results, coverage = _analyze_period(store, analyzer, trender, args.gallery,
-                                            start, end, args.kinds.split(","))
+                                            start, end, args.kinds.split(","),
+                                            max_chars=cfg.llm.max_chunk_chars)
         total, failed = coverage.get("chunks_total", 0), coverage.get("chunks_failed", 0)
         if total and failed == total:
             print("오류: 모든 LLM 청크가 실패했습니다 — llm_calls 로그를 확인하세요 "

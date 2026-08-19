@@ -12,7 +12,9 @@ class LlmConfig:
     model: str = "motif-12.7b-reasoning"
     api_key_env: str = "MOTIF_API_KEY"
     temperature: float = 0.3
-    timeout: float = 60.0
+    # reasoning 모델은 큰 입력에 수 분이 걸릴 수 있다 (실측 2026-08: 12k글자 60초 초과)
+    timeout: float = 300.0
+    max_chunk_chars: int = 5000
 
 
 @dataclass
