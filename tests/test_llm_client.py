@@ -17,6 +17,18 @@ def test_extract_json_invalid_raises():
         extract_json("json이 아님")
 
 
+def test_extract_json_skips_reasoning_example_objects():
+    # reasoning 모델 실측: 평문 추론 + 예시(JSON 아님) + 최종 답
+    text = ('Okay, let me compute. The format is {"sum": <number>} so I need '
+            'the value of 1+1. The answer: {"sum": 2}')
+    assert extract_json(text) == {"sum": 2}
+
+
+def test_extract_json_takes_first_valid_of_duplicates():
+    text = '{"a": 1} {"a": 2}'
+    assert extract_json(text) == {"a": 1}
+
+
 class _Msg:
     pass
 

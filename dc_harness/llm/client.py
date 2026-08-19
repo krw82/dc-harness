@@ -6,7 +6,6 @@ import re
 from ..net.guard import UnsafeUrlError, validate_http_url
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
-_JSON_RE = re.compile(r"\{.*\}|\[.*\]", re.DOTALL)
 
 
 class LlmJsonError(ValueError):
@@ -18,15 +17,22 @@ def strip_think(text: str) -> str:
 
 
 def extract_json(text: str) -> dict | list:
+    """응답에서 첫 번째 '유효한' JSON 객체를 파싱한다.
+    reasoning 모델이 평문 추론(예시 JSON 포함)을 앞에 쓰거나 객체를 반복 출력해도
+    건너뛰고 파싱 가능한 것을 찾는다."""
     cleaned = strip_think(text).strip()
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.MULTILINE).strip()
-    match = _JSON_RE.search(cleaned)
-    if not match:
-        raise LlmJsonError("no json object found in response")
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError as exc:
-        raise LlmJsonError(f"invalid json: {exc}") from exc
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(cleaned):
+        if ch not in "{[":
+            continue
+        try:
+            obj, _end = decoder.raw_decode(cleaned, i)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, (dict, list)):
+            return obj
+    raise LlmJsonError("no valid json object found in response")
 
 
 class LlmClient:
