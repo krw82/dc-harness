@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 
 from ..llm.chunker import chunk_posts, render_post_text
 from ..llm.client import LlmClient
 from ..store import Store
-from .kinds import KINDS, AnalysisKind, merge_chunk_results
+from .kinds import KINDS, PROMPT_VERSION, AnalysisKind, merge_chunk_results
 
 
 class Analyzer:
     def __init__(self, store: Store, llm: LlmClient):
         self.store, self.llm = store, llm
 
-    def _map(self, kind: AnalysisKind, chunks) -> tuple[list[dict], int]:
+    def _map(self, kind: AnalysisKind, run_id: int, chunks) -> tuple[list[dict], int]:
         results: list[dict] = []
         failed = 0
         for chunk in chunks:
@@ -20,7 +21,12 @@ class Analyzer:
             user = (f"{kind.instruction}\n\n출력 스키마(JSON):\n{kind.schema_hint}\n\n"
                     f"=== 데이터 ===\n{corpus}")
             try:
-                results.append(self.llm.chat_json(kind.system, user))
+                result = self.llm.chat_json(kind.system, user)
+                results.append(result)
+                self.store.log_llm_call(  # I5: 모든 호출 감사
+                    run_id, kind.name, kind.system, user,
+                    json.dumps(result, ensure_ascii=False),
+                    getattr(self.llm, "model", "unknown"), PROMPT_VERSION)
             except Exception:
                 failed += 1
         return results, failed
@@ -37,7 +43,7 @@ class Analyzer:
         total_failed = 0
         for name in kinds:
             kind = KINDS[name]
-            chunk_results, failed = self._map(kind, chunks)
+            chunk_results, failed = self._map(kind, run_id, chunks)
             total_failed += failed
             results[name] = merge_chunk_results(name, chunk_results)
             self.store.save_analysis(run_id, name, gallery_id, start, end, results[name])
