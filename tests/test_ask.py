@@ -82,3 +82,15 @@ def test_ask_absorbs_bare_array_response(tmp_path: Path):
     ])
     answer = ask(store, load_ontology(None), llm, "crypto", "관심사는?")
     assert "현물 매수" in answer and "글#101" in answer
+
+
+def test_numeric_answer_enriched_from_ontology(tmp_path: Path):
+    # 실측: 모델이 번호만 나열하면 토픽 라벨로 답변 합성
+    store = seed(tmp_path)
+    llm = ScriptedLlm([
+        {"answer": "101"},
+        {"answer": "101"},
+    ])
+    answer = ask(store, load_ontology(None), llm, "crypto", "관심 주제는?")
+    assert "현물 매수" in answer and "[글#101]" in answer
+    assert "근거 인용 없음" not in answer

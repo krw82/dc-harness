@@ -9,6 +9,25 @@ from .defn import OntologyDef
 from .tools import build_tools
 
 _CITATION = re.compile(r"글#\d+")
+_NUMERIC_ONLY = re.compile(r"^[\d\s,]+$")
+
+
+def enrich_numeric_answer(store: Store, gallery_id: str, answer: str) -> str:
+    """모델이 글 번호만 나열로 답한 경우(12.7B 실측 패턴), 온톨로지에서 토픽 라벨을
+    조회해 인용 포함 문장으로 합성한다."""
+    if not _NUMERIC_ONLY.match(answer.strip()) or not answer.strip():
+        return answer
+    post_nos = [int(n) for n in re.findall(r"\d+", answer)][:8]
+    parts = []
+    for no in post_nos:
+        row = store.conn.execute(
+            "SELECT t.label FROM obj_post_topics j JOIN obj_topics t ON j.topic_id=t.topic_id AND j.run_id=t.run_id WHERE j.gallery_id=? AND j.post_no=? AND t.run_id=(SELECT MAX(run_id) FROM obj_topics)",
+            (gallery_id, no)).fetchone()
+        if row:
+            parts.append(f"{row['label']} [글#{no}]")
+    if not parts:
+        return answer + "\n(해당 글과 연결된 토픽 없음 — dch show로 직접 확인 권장)"
+    return "질문과 관련된 주제: " + ", ".join(parts)
 
 
 def ontology_summary(defn: OntologyDef) -> str:
@@ -70,5 +89,8 @@ def ask(store: Store, defn: OntologyDef, llm: LlmClient, gallery_id: str,
                        "도구로 근거를 확인한 뒤 인용을 포함해 다시 답하라.")
     store.finish_run(run_id, "done", {"question": question})
     if answer and not _CITATION.search(answer):
-        answer += "\n(근거 인용 없음 — 도구 결과를 직접 확인 권장)"
+        if _NUMERIC_ONLY.match(answer.strip()):
+            answer = enrich_numeric_answer(store, gallery_id, answer)
+        if not _CITATION.search(answer):
+            answer += "\n(근거 인용 없음 — 도구 결과를 직접 확인 권장)"
     return answer or "(최대 스텝 초과 — 질문을 좁혀서 다시)"
