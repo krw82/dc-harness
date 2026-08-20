@@ -10,3 +10,4 @@ reports/
 .ruff_cache/
 .mimosa/
 .env.local
+post/
