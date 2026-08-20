@@ -33,10 +33,11 @@ def ask(store: Store, defn: OntologyDef, llm: LlmClient, gallery_id: str,
         ontology_summary(defn)
         + "\n\n=== 사용 가능 도구 ===\n"
         + "\n".join(f"- {t.name}: {t.description}" for t in tools.values())
-        + '\n\n규칙: 도구가 필요하면 {"tool": 이름, "args": {...}} JSON만 출력한다.'
-        ' 도구 결과를 보고 충분하면 {"answer": "..."} JSON으로 최종 답변한다.'
-        " 답변은 한국어, 모든 주장에 [글#번호] 인용을 포함한다."
-        " 원본 데이터 전체를 요구하지 말고 도구 결과만 사용한다."
+        + '\n\n=== 출력 형식 (반드시 정확히 지킬 것) ===\n'
+        '도구 호출: {"tool": "queryObjects", "args": {"apiName": "Topic", "days": 7}}\n'
+        '최종 답변: {"answer": "한국어 문장으로 설명. 근거 글 번호를 [글#101] 형태로 반드시 포함."}\n'
+        "예시: {\"answer\": \"최근 관심 주제는 현물 매수와 채굴 단가입니다. 근거: [글#101], [글#102]\"}\n"
+        "금지: 숫자만 나열, 배열 출력, JSON 외 텍스트. 답은 반드시 위 두 형식 중 하나다."
     )
     transcript = f"질문: {question}"
     answer = ""
@@ -48,7 +49,7 @@ def ask(store: Store, defn: OntologyDef, llm: LlmClient, gallery_id: str,
             result = {"answer": ", ".join(str(x) for x in result)}
         store.log_llm_call(run_id, "ask", system, transcript,
                            json.dumps(result, ensure_ascii=False),
-                           getattr(llm, "model", "unknown"), "ask-v1")
+                           getattr(llm, "model", "unknown"), "ask-v2")
         if "tool" in result:
             tool = tools.get(result["tool"])
             if tool is None:
