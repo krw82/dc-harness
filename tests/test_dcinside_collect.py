@@ -54,3 +54,32 @@ def test_collect_skips_deleted_post_and_continues():
 def test_collect_still_stops_on_block():
     with pytest.raises(BlockedError):
         list(FakeCollector(deleted=set(), blocked={2}).collect(1, progress=lambda *_: None))
+
+
+def test_minor_gallery_uses_mgallery_urls():
+    seen = []
+    list_html = ("<table class='gall_list'><tr class='ub-content'>"
+                 "<td class='gall_tit ub-word'><a href='/mgallery/board/view/?id=g&no=1'>t</a></td>"
+                 "<td class='gall_writer'>w</td>"
+                 "<td class='gall_date' title='2026-08-10 09:00:00'>d</td>"
+                 "<td class='gall_count'>1</td><td class='gall_recommend'>1</td></tr>"
+                 "</table>")
+    post_html = ("<div class='view_content_wrap'><span class='nickname'>w</span>"
+                 "<span class='gall_date' title='2026-08-10 09:00:00'>d</span>"
+                 "<span class='gall_count'>조회 1</span>"
+                 "<span class='gall_reply_num'>추천 1</span>"
+                 "<h3 class='title_subject'>t</h3>"
+                 "<div class='write_div'><p>본문</p></div></div>")
+
+    class MgallerySpy(DcInsideCollector):
+        def _get(self, url: str) -> str:
+            seen.append(url)
+            assert "mgallery" in url, f"expected mgallery url, got {url}"
+            return post_html if "no=" in url else list_html
+
+    posts = list(MgallerySpy("thesingularity",
+                             CollectConfig(delay_min_seconds=0, delay_jitter_seconds=0),
+                             minor=True).collect(1, progress=lambda *_: None))
+    assert len(posts) == 1
+    assert any("mgallery/board/lists" in u for u in seen)
+    assert any("mgallery/board/view" in u for u in seen)

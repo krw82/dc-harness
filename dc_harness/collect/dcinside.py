@@ -17,7 +17,9 @@ from ..net.guard import DC_HOSTS, UnsafeUrlError, validate_http_url
 from ..normalize import clean_text
 
 LIST_URL = "https://gall.dcinside.com/board/lists/?id={gallery_id}&page={page}"
+MGALLERY_LIST_URL = "https://gall.dcinside.com/mgallery/board/lists/?id={gallery_id}&page={page}"
 POST_URL = "https://gall.dcinside.com/board/view/?id={gallery_id}&no={post_no}"
+MGALLERY_POST_URL = "https://gall.dcinside.com/mgallery/board/view/?id={gallery_id}&no={post_no}"
 COMMENT_URL = "https://gall.dcinside.com/board/comment/"
 
 _DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
@@ -130,7 +132,7 @@ def parse_post_page(html: str, post_no: int) -> PostDetail:
 
 
 def fetch_comments(client, gallery_id: str, post_no: int, e_s_n_o: str,
-                   cmt_page: int = 1) -> list[Comment]:
+                   cmt_page: int = 1, minor: bool = False) -> list[Comment]:
     """댓글 AJAX 조회. JS 생성 쿠키가 없으면 DC가 거부('정상적인 접근이 아닙니다')하는데,
     이때는 빈 리스트로 우아히 저하한다(게시글 수집은 유지). 쿠키는 DC_COOKIES env로 제공."""
     try:
@@ -140,7 +142,8 @@ def fetch_comments(client, gallery_id: str, post_no: int, e_s_n_o: str,
                      "Referer": POST_URL.format(gallery_id=gallery_id, post_no=post_no)},
             data={"id": gallery_id, "no": str(post_no), "cmt_gno": "0",
                   "cmt_comment": "0", "cmt_page": str(cmt_page),
-                  "e_s_n_o": e_s_n_o, "_GALLTYPE_": "G"})
+                  "e_s_n_o": e_s_n_o,
+                  "_GALLTYPE_": "M" if minor else "G"})
         if resp.status_code != 200 or len(resp.text) < 30:
             return []
         data = resp.json()
@@ -185,9 +188,13 @@ def stale_list_warning(listed: list[ListedPost], max_age_days: int = 7) -> str |
 
 class DcInsideCollector:
     def __init__(self, gallery_id: str, cfg: CollectConfig, cookies: str | None = None,
-                 client: httpx.Client | None = None):
+                 client: httpx.Client | None = None, minor: bool = False):
+        """minor=True면 마이너 갤러리(/mgallery/board/) 경로를 사용한다."""
         self.gallery_id = gallery_id
         self.cfg = cfg
+        self.minor = minor
+        self._list_url = MGALLERY_LIST_URL if minor else LIST_URL
+        self._post_url = MGALLERY_POST_URL if minor else POST_URL
         headers = {"User-Agent": cfg.user_agent}
         if cookies:
             headers["Cookie"] = cookies
@@ -221,7 +228,7 @@ class DcInsideCollector:
 
     def collect(self, pages: int, progress=print) -> Iterator[RawPost]:
         for page in range(1, pages + 1):
-            html = self._get(LIST_URL.format(gallery_id=self.gallery_id, page=page))
+            html = self._get(self._list_url.format(gallery_id=self.gallery_id, page=page))
             archived = archive_range(html)
             if archived:
                 progress(f"알림: 아카이브 갤러리({archived}) — 과거 글만 수집됩니다.")
@@ -233,7 +240,8 @@ class DcInsideCollector:
             for item in listed:
                 try:
                     post_html = self._get(
-                        POST_URL.format(gallery_id=self.gallery_id, post_no=item.post_no))
+                        self._post_url.format(gallery_id=self.gallery_id,
+                                              post_no=item.post_no))
                 except BlockedError:
                     raise  # 차단은 즉시 정지
                 except RuntimeError as exc:
@@ -246,7 +254,8 @@ class DcInsideCollector:
                     self._polite_sleep()
                     detail.comments = (
                         fetch_comments(self.client, self.gallery_id,
-                                       item.post_no, esno.group(1))
+                                       item.post_no, esno.group(1),
+                                       minor=self.minor)
                         or detail.comments)
                 yield RawPost(
                     gallery_id=self.gallery_id, post_no=item.post_no,

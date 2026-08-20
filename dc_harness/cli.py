@@ -35,7 +35,8 @@ def _cmd_collect(args, cfg: Config) -> int:
         print("pages=0: nothing to collect")
         return 0
     cookies = os.environ.get(cfg.collect.cookies_env) or None
-    collector = DcInsideCollector(args.gallery, cfg.collect, cookies=cookies)
+    collector = DcInsideCollector(args.gallery, cfg.collect, cookies=cookies,
+                                  minor=getattr(args, "minor", False))
     collected = 0
     with Store(Path(args.db)) as store:
         try:
@@ -182,6 +183,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_collect = sub.add_parser("collect", help="DC Inside 갤러리 수집")
     p_collect.add_argument("--gallery", required=True)
     p_collect.add_argument("--pages", type=int, default=3)
+    p_collect.add_argument("--minor", action="store_true",
+                           help="마이너 갤러리(/mgallery/) 경로 사용")
     p_collect.add_argument("--db", type=Path, default=Path("data/dch.db"))
     p_collect.set_defaults(func=_cmd_collect)
 
@@ -209,6 +212,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_run = sub.add_parser("run", help="수집→분석→리포트 전체 파이프라인")
     add_analyze_common(p_run)
     p_run.add_argument("--pages", type=int, default=3)
+    p_run.add_argument("--minor", action="store_true",
+                       help="마이너 갤러리(/mgallery/) 경로 사용")
     p_run.add_argument("--file", type=Path, default=None,
                        help="지정하면 수집 대신 JSONL 파일을 적재")
     p_run.add_argument("--kinds", default=DEFAULT_KINDS)
