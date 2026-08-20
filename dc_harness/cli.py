@@ -174,6 +174,12 @@ def _cmd_ontology(args, cfg: Config) -> int:
     return 0
 
 
+def _cmd_web(args, cfg: Config) -> int:
+    from .web import run_server
+    run_server(Path(args.db), port=args.port)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dch", description="DC Inside gallery opinion research harness")
@@ -243,6 +249,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_onto = sub.add_parser("ontology", help="온톨로지 정의 인쇄 (객체·링크)")
     p_onto.add_argument("--json", action="store_true")
     p_onto.set_defaults(func=_cmd_ontology)
+
+    p_web = sub.add_parser("web", help="로컬 웹 뷰어 가동 (127.0.0.1 전용)")
+    p_web.add_argument("--port", type=int, default=8765)
+    p_web.add_argument("--db", type=Path, default=Path("data/dch.db"))
+    p_web.set_defaults(func=_cmd_web)
     return parser
 
 

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>여론 관측소</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔭</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B0E1A; --bg2:#10142A;
+  --surface:rgba(23,28,48,.66); --surface-solid:#161B30;
+  --hairline:rgba(148,158,198,.15); --hairline-soft:rgba(148,158,198,.08);
+  --amber:#FFB454; --amber-glow:rgba(255,180,84,.35);
+  --pro:#8B93FF; --con:#FF7A93;
+  --pos:#7AD9A7; --neg:#FF7A93; --neu:#9AA0B5; --wish:#FFB454; --idea:#8B93FF;
+  --text:#E8EAF2; --text-2:#9AA0B5; --text-3:#646B84;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans); color:var(--text); min-height:100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(139,147,255,.07), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(255,180,84,.05), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased; letter-spacing:-.01em;
+}
+::selection{background:rgba(255,180,84,.25)}
+.wrap{max-width:980px;margin:0 auto;padding:0 28px 120px}
+
+/* ── 헤더 ─────────────────────────────── */
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.32em; color:var(--amber);
+  padding-top:56px; display:flex; align-items:center; gap:14px;
+  opacity:0; transform:translateY(10px); transition:all .7s cubic-bezier(.22,1,.36,1) .1s;
+}
+.eyebrow::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--hairline),transparent)}
+.masthead{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-top:18px; flex-wrap:wrap}
+h1{
+  font-size:clamp(34px,5.4vw,52px); font-weight:800; letter-spacing:-.035em; line-height:1.08;
+  opacity:0; transform:translateY(16px); transition:all .8s cubic-bezier(.22,1,.36,1) .22s;
+}
+h1 .dim{color:var(--text-3); font-weight:600}
+.measure-meta{
+  font-family:var(--mono); font-size:11.5px; color:var(--text-2); line-height:1.9;
+  text-align:right; opacity:0; transform:translateY(10px);
+  transition:all .8s cubic-bezier(.22,1,.36,1) .34s;
+}
+.measure-meta b{color:var(--text); font-weight:500}
+body.ready .eyebrow, body.ready h1, body.ready .measure-meta{opacity:1; transform:none}
+
+/* ── 맥박 파형 (시그니처) ─────────────── */
+.pulse{margin:34px 0 0; opacity:0; transition:opacity 1s ease .5s}
+body.ready .pulse{opacity:1}
+.pulse svg{display:block; width:100%; height:150px; overflow:visible}
+.pulse .area{fill:url(#pulseGrad); opacity:0; transition:opacity 1.4s ease 1.4s}
+.pulse .line{fill:none; stroke:var(--amber); stroke-width:2.2; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px var(--amber-glow))}
+.pulse .dot{fill:var(--bg2); stroke:var(--amber); stroke-width:1.6; opacity:0;
+  transform-origin:center; transform:scale(0); transition:transform .45s cubic-bezier(.34,1.56,.64,1), opacity .3s}
+.pulse .dot.on{opacity:1; transform:scale(1)}
+.pulse .dot:hover{fill:var(--amber)}
+.pulse-labels{display:flex; justify-content:space-between; font-family:var(--mono);
+  font-size:10.5px; color:var(--text-3); letter-spacing:.08em; margin-top:8px;
+  opacity:0; transition:opacity .8s ease 1.6s}
+body.ready .pulse-labels{opacity:1}
+.pulse-caption{font-family:var(--mono); font-size:10.5px; color:var(--text-3);
+  letter-spacing:.18em; margin-top:2px; opacity:0; transition:opacity .8s ease 1.8s}
+body.ready .pulse-caption{opacity:.9}
+
+/* ── 계수판 ───────────────────────────── */
+.counters{
+  display:grid; grid-template-columns:repeat(5,1fr); margin-top:40px;
+  border-top:1px solid var(--hairline); border-bottom:1px solid var(--hairline);
+  opacity:0; transform:translateY(12px); transition:all .8s cubic-bezier(.22,1,.36,1) .6s;
+}
+body.ready .counters{opacity:1; transform:none}
+.counter{padding:20px 6px 18px; text-align:center; position:relative}
+.counter + .counter::before{content:""; position:absolute; left:0; top:22%; height:56%;
+  width:1px; background:var(--hairline-soft)}
+.counter .num{font-family:var(--mono); font-size:30px; font-weight:600; color:var(--text);
+  font-variant-numeric:tabular-nums}
+.counter .lab{font-size:12px; color:var(--text-2); margin-top:4px; letter-spacing:.02em}
+
+/* ── 갤러리 칩 ────────────────────────── */
+.chips{display:flex; gap:10px; margin-top:36px; flex-wrap:wrap;
+  opacity:0; transform:translateY(10px); transition:all .7s ease .72s}
+body.ready .chips{opacity:1; transform:none}
+.chip{
+  font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--text-2);
+  padding:8px 16px; border:1px solid var(--hairline); border-radius:999px; cursor:pointer;
+  background:transparent; transition:all .25s ease; letter-spacing:-.01em;
+}
+.chip:hover{color:var(--text); border-color:var(--text-3); transform:translateY(-1px)}
+.chip.active{color:#1A1206; background:var(--amber); border-color:var(--amber);
+  box-shadow:0 4px 18px rgba(255,180,84,.25)}
+.chip:focus-visible, .row-link:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+.chip .m{font-family:var(--mono); font-size:10px; font-weight:500; opacity:.65; margin-left:5px}
+
+/* ── 섹션 공통 ────────────────────────── */
+section{margin-top:72px}
+.sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
+.sec-head h2{font-size:21px; font-weight:750; letter-spacing:-.025em}
+.sec-head .en{font-family:var(--mono); font-size:10.5px; color:var(--text-3); letter-spacing:.24em}
+.sec-sub{font-size:13.5px; color:var(--text-2); margin-bottom:22px; line-height:1.6}
+.reveal{opacity:0; transform:translateY(26px);
+  transition:opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1);
+  transition-delay:calc(var(--i,0)*90ms)}
+.reveal.in{opacity:1; transform:none}
+
+/* ── 토픽 ─────────────────────────────── */
+.topic{
+  padding:20px 22px; border:1px solid var(--hairline-soft); border-radius:14px;
+  background:var(--surface); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  margin-bottom:12px; transition:border-color .3s ease, transform .3s ease;
+}
+.topic:hover{border-color:rgba(255,180,84,.35); transform:translateY(-2px)}
+.topic-top{display:flex; justify-content:space-between; gap:16px; align-items:baseline; flex-wrap:wrap}
+.topic-label{font-size:16.5px; font-weight:700; letter-spacing:-.02em}
+.topic-refs{font-family:var(--mono); font-size:11px; color:var(--amber); opacity:.85}
+.topic-keywords{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+.kw{font-size:11.5px; color:var(--text-2); border:1px solid var(--hairline-soft);
+  padding:3px 9px; border-radius:6px; letter-spacing:.01em}
+.topic-snippet{font-size:13px; color:var(--text-2); margin-top:10px; line-height:1.65;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+
+/* ── 여론 막대 ────────────────────────── */
+.issue{padding:20px 4px; border-bottom:1px solid var(--hairline-soft)}
+.issue:last-child{border-bottom:none}
+.issue-label{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; gap:12px}
+.issue-name{font-size:15.5px; font-weight:650}
+.issue-neutral{font-family:var(--mono); font-size:11px; color:var(--text-3)}
+.axis{position:relative; height:22px}
+.axis::before{content:""; position:absolute; left:50%; top:-4px; bottom:-4px; width:1px;
+  background:var(--hairline)}
+.bar-l,.bar-r{position:absolute; top:2px; height:18px; border-radius:5px; width:0;
+  transition:width 1.1s cubic-bezier(.22,1,.36,1) calc(var(--i,0)*120ms + .2s)}
+.bar-l{right:50%; border-radius:5px 0 0 5px; background:linear-gradient(90deg, rgba(139,147,255,.45), var(--pro))}
+.bar-r{left:50%; border-radius:0 5px 5px 0; background:linear-gradient(90deg, var(--con), rgba(255,122,147,.45))}
+.bar-num{position:absolute; top:3px; font-family:var(--mono); font-size:11px; font-weight:600}
+.bar-num.l{right:calc(50% + 10px); color:var(--pro)}
+.bar-num.r{left:calc(50% + 10px); color:var(--con)}
+.axis.in .bar-l{width:calc(var(--w) * .5%)}
+.axis.in .bar-r{width:calc(var(--w) * .5%)}
+.quotes{margin-top:12px; display:flex; flex-direction:column; gap:6px}
+.quote{font-size:12.5px; color:var(--text-2); line-height:1.6; padding-left:12px;
+  border-left:2px solid var(--hairline)}
+.quote .stance{font-family:var(--mono); font-size:10px; letter-spacing:.1em; margin-right:6px}
+.quote .stance.pro{color:var(--pro)} .quote .stance.con{color:var(--con)}
+.resonant{margin-top:26px; padding:18px 20px; border-radius:14px;
+  background:linear-gradient(135deg, rgba(255,180,84,.06), rgba(255,180,84,.015));
+  border:1px solid rgba(255,180,84,.18)}
+.resonant h3{font-size:14px; font-weight:700; color:var(--amber); margin-bottom:12px;
+  letter-spacing:-.01em}
+.resonant-item{font-size:13px; color:var(--text-2); line-height:1.65; padding:7px 0;
+  border-bottom:1px solid var(--hairline-soft)}
+.resonant-item:last-child{border-bottom:none}
+.resonant-item b{color:var(--text); font-weight:600}
+.resonant-item .why{opacity:.75}
+
+/* ── 엔티티 ───────────────────────────── */
+.entity{display:grid; grid-template-columns:14px 1fr auto auto; gap:14px; align-items:center;
+  padding:13px 4px; border-bottom:1px solid var(--hairline-soft); transition:background .2s}
+.entity:hover{background:rgba(148,158,198,.04)}
+.entity:last-child{border-bottom:none}
+.s-dot{width:9px; height:9px; border-radius:50%; justify-self:center}
+.s-dot.긍정{background:var(--pos); box-shadow:0 0 8px rgba(122,217,167,.4)}
+.s-dot.부정{background:var(--neg); box-shadow:0 0 8px rgba(255,122,147,.4)}
+.s-dot.mixed{background:linear-gradient(135deg,var(--pos),var(--neg))}
+.s-dot.중립{background:var(--neu)}
+.entity-name{font-size:14.5px; font-weight:650}
+.entity-name .type{font-size:11px; color:var(--text-3); font-weight:500; margin-left:8px}
+.entity-name .reason{display:block; font-size:12px; color:var(--text-2); font-weight:400;
+  margin-top:3px; line-height:1.55}
+.entity-mentions{font-family:var(--mono); font-size:13px; color:var(--text-2)}
+.entity-mentions b{color:var(--text); font-weight:600}
+
+/* ── 목소리 ───────────────────────────── */
+.voice-group{margin-bottom:26px}
+.voice-group h3{font-size:13px; font-weight:700; letter-spacing:.04em; margin-bottom:10px;
+  display:flex; align-items:center; gap:8px}
+.voice-group h3 .n{font-family:var(--mono); font-size:11px; color:var(--text-3); font-weight:500}
+.voice{position:relative; padding:14px 18px 14px 20px; border-radius:0 12px 12px 0;
+  background:var(--surface); margin-bottom:8px; transition:transform .25s ease}
+.voice:hover{transform:translateX(3px)}
+.voice::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; border-radius:3px}
+.voice.g-painpoint::before{background:var(--neg)}
+.voice.g-wish::before{background:var(--wish)}
+.voice.g-idea::before{background:var(--idea)}
+.voice-text{font-size:14px; font-weight:600; line-height:1.5}
+.voice-quote{font-size:12.5px; color:var(--text-2); margin-top:6px; line-height:1.6;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.voice-meta{font-family:var(--mono); font-size:10.5px; color:var(--text-3); margin-top:8px}
+.voice-meta .ref{color:var(--amber); opacity:.8}
+
+/* ── 인기글 ───────────────────────────── */
+.rank{display:grid; grid-template-columns:44px 1fr auto; gap:16px; align-items:center;
+  padding:14px 4px; border-bottom:1px solid var(--hairline-soft); transition:background .2s}
+.rank:hover{background:rgba(148,158,198,.04)}
+.rank:last-child{border-bottom:none}
+.rank-no{font-family:var(--mono); font-size:19px; font-weight:600; color:var(--amber); opacity:.9}
+.rank:nth-child(n+4) .rank-no{color:var(--text-3); opacity:1}
+.rank-title{font-size:14.5px; font-weight:550; line-height:1.45}
+.rank-nums{font-family:var(--mono); font-size:12px; color:var(--text-2); text-align:right; line-height:1.7}
+.rank-nums b{color:var(--text); font-weight:600}
+.rank-nums .v{color:var(--text-3); font-size:11px}
+
+/* ── 푸터 / 빈 상태 ───────────────────── */
+footer{margin-top:90px; padding-top:26px; border-top:1px solid var(--hairline);
+  display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  font-family:var(--mono); font-size:11px; color:var(--text-3); line-height:1.9; letter-spacing:.04em}
+footer .cmd{color:var(--amber); opacity:.75}
+.empty{margin-top:120px; text-align:center}
+.empty .icon{font-size:44px; margin-bottom:18px; opacity:.8}
+.empty h2{font-size:20px; font-weight:700; margin-bottom:10px}
+.empty p{font-size:13.5px; color:var(--text-2); line-height:1.7}
+.empty code{font-family:var(--mono); font-size:12px; color:var(--amber);
+  background:rgba(255,180,84,.08); padding:3px 10px; border-radius:6px}
+
+@media (max-width:680px){
+  .counters{grid-template-columns:repeat(3,1fr)}
+  .counter:nth-child(4)::before{display:none}
+  .measure-meta{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none !important; animation:none !important}
+  .reveal,.eyebrow,h1,.measure-meta,.chips,.counters,.pulse{opacity:1 !important; transform:none !important}
+  .pulse .dot{opacity:1; transform:scale(1)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">DC OPINION OBSERVATORY · 여론 관측소</div>
+  <div class="masthead">
+    <h1 id="g-title">관측 준비 중<span class="dim">…</span></h1>
+    <div class="measure-meta" id="g-meta"></div>
+  </div>
+
+  <div class="pulse" id="pulse" hidden>
+    <svg id="pulse-svg" viewBox="0 0 980 150" preserveAspectRatio="none" aria-label="기간별 게시글 활동량"></svg>
+    <div class="pulse-labels"><span id="p-start"></span><span id="p-end"></span></div>
+    <div class="pulse-caption">GALLERY PULSE — 일별 게시글 관측 기록</div>
+  </div>
+
+  <div class="counters" id="counters" hidden></div>
+  <div class="chips" id="chips"></div>
+
+  <div id="content"></div>
+
+  <footer>
+    <div id="foot-left">모든 주장은 근거 글 번호로 추적됩니다 · 개인 연구용</div>
+    <div>재측정 <span class="cmd">dch run --gallery &lt;id&gt; --days 7</span></div>
+  </footer>
+</div>
+
+<script>
+const GALLERY_NAMES = {programming:"프로그래밍", thesingularity:"특이점이 온다", stock:"주식"};
+const $ = (s)=>document.querySelector(s);
+const esc = (s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let currentGallery = null;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ── 계수 애니메이션 ── */
+function countUp(el, target){
+  if(reduced){ el.textContent = target; return; }
+  const t0 = performance.now(), dur = 1100;
+  (function tick(t){
+    const p = Math.min((t-t0)/dur, 1), e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(target*e).toLocaleString();
+    if(p<1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+/* ── 맥박 파형 ── */
+function drawPulse(activity){
+  const svg = $("#pulse-svg"); svg.innerHTML = "";
+  const W=980, H=150, padX=14, padTop=26, padBot=18;
+  const max = Math.max(...activity.map(a=>a.count), 1);
+  const xs = (i)=>padX + i*(W-2*padX)/(activity.length-1);
+  const ys = (v)=>padTop + (1-v/max)*(H-padTop-padBot);
+  // 부드러운 곡선 (단조 베지어)
+  let d = `M ${xs(0)} ${ys(activity[0].count)}`;
+  for(let i=0;i<activity.length-1;i++){
+    const x0=xs(i), x1=xs(i+1), mx=(x0+x1)/2;
+    d += ` C ${mx} ${ys(activity[i].count)}, ${mx} ${ys(activity[i+1].count)}, ${x1} ${ys(activity[i+1].count)}`;
+  }
+  const defs = document.createElementNS("http://www.w3.org/2000/svg","defs");
+  defs.innerHTML = `<linearGradient id="pulseGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFB454" stop-opacity=".22"/>
+    <stop offset="1" stop-color="#FFB454" stop-opacity="0"/></linearGradient>`;
+  svg.appendChild(defs);
+  const area = document.createElementNS("http://www.w3.org/2000/svg","path");
+  area.setAttribute("class","area");
+  area.setAttribute("d", d + ` L ${xs(activity.length-1)} ${H} L ${xs(0)} ${H} Z`);
+  svg.appendChild(area);
+  const line = document.createElementNS("http://www.w3.org/2000/svg","path");
+  line.setAttribute("class","line"); line.setAttribute("d", d);
+  svg.appendChild(line);
+  const dots = activity.map((a,i)=>{
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("class","dot"); c.setAttribute("cx",xs(i)); c.setAttribute("cy",ys(a.count)); c.setAttribute("r",3.4);
+    c.innerHTML = `<title>${a.date} · ${a.count}건</title>`;
+    svg.appendChild(c); return c;
+  });
+  // 그리기 애니메이션
+  const len = line.getTotalLength();
+  line.style.strokeDasharray = len; line.style.strokeDashoffset = len;
+  line.style.transition = "stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1)";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ line.style.strokeDashoffset = 0; }));
+  dots.forEach((c,i)=>setTimeout(()=>c.classList.add("on"), 500+i*90));
+  setTimeout(()=>area.style.opacity=1, 1500);
+  $("#p-start").textContent = activity[0].date.slice(5).replace("-",".");
+  $("#p-end").textContent = activity[activity.length-1].date.slice(5).replace("-",".");
+}
+
+/* ── 렌더 ── */
+function renderHeader(o){
+  $("#g-title").innerHTML = esc(GALLERY_NAMES[o.gallery]||o.gallery);
+  $("#g-meta").innerHTML =
+    `측정 기간 <b>${o.period.start.slice(5)} ~ ${o.period.end.slice(5)}</b><br>` +
+    `측정 run <b>#${o.run_id}</b> · 추출 프롬프트 <b>v1</b>`;
+  const labels = [["posts","게시글"],["topics","토픽"],["issues","쟁점"],["entities","언급 대상"],["voices","목소리"]];
+  const c = $("#counters"); c.hidden = false; c.innerHTML = "";
+  labels.forEach(([k,lab])=>{
+    const div = document.createElement("div"); div.className = "counter";
+    div.innerHTML = `<div class="num" data-n="${o.counts[k]}">0</div><div class="lab">${lab}</div>`;
+    c.appendChild(div); countUp(div.querySelector(".num"), o.counts[k]);
+  });
+  $("#pulse").hidden = false; drawPulse(o.activity);
+}
+
+function renderContent(o){
+  const el = $("#content");
+  if(!o.measured){
+    el.innerHTML = `<div class="empty"><div class="icon">🔭</div>
+      <h2>아직 이 갤러리는 관측 기록이 없습니다</h2>
+      <p>아래 명령으로 측정(수집→분석)을 먼저 실행하세요<br><br>
+      <code>dch run --gallery ${esc(o.gallery)} --days 7</code></p></div>`;
+    return;
+  }
+  let html = "";
+
+  if(o.topics.length){
+    html += `<section><div class="sec-head"><h2>이번 주 논의</h2><span class="en">TOPICS</span></div>
+      <p class="sec-sub">갤러리에서 가장 자주 오른 주제들입니다. 근거 글 번호를 클릭해 원문을 확인할 수 있습니다.</p>` +
+      o.topics.map((t,i)=>`
+      <div class="topic reveal" style="--i:${i}">
+        <div class="topic-top">
+          <div class="topic-label">${esc(t.label)}</div>
+          <div class="topic-refs">${(t.post_nos||[]).slice(0,6).map(n=>`#${n}`).join(" ")}</div>
+        </div>
+        <div class="topic-keywords">${(t.keywords||[]).map(k=>`<span class="kw">${esc(k)}</span>`).join("")}</div>
+        ${t.snippet?`<div class="topic-snippet">${esc(t.snippet)}</div>`:""}
+      </div>`).join("") + `</section>`;
+  }
+
+  if(o.issues.length){
+    const maxN = Math.max(...o.issues.map(x=>(x.pro||0)+(x.con||0)), 1);
+    html += `<section><div class="sec-head"><h2>여론의 방향</h2><span class="en">STANCES</span></div>
+      <p class="sec-sub">쟁점별 찬반 분포입니다. 왼쪽은 찬성, 오른쪽은 반대 발언 수입니다.</p>` +
+      o.issues.map((x,i)=>{
+        const pro=x.pro||0, con=x.con||0, total=pro+con||1;
+        return `<div class="issue reveal" style="--i:${i}">
+          <div class="issue-label">
+            <div class="issue-name">${esc(x.issue)}</div>
+            <div class="issue-neutral">중립 ${x.neutral||0}</div>
+          </div>
+          <div class="axis" style="--i:${i};--w:${Math.round(total/maxN*100)}">
+            <div class="bar-l" style="--w:${Math.round(total/maxN*100)}"></div>
+            <div class="bar-r" style="--w:${Math.round(total/maxN*100)}"></div>
+            <span class="bar-num l">${pro}</span><span class="bar-num r">${con}</span>
+          </div>
+          ${(x.quotes||[]).slice(0,2).map(q=>`
+            <div class="quotes"><div class="quote">
+              <span class="stance ${q.stance==="pro"?"pro":"con"}">${q.stance==="pro"?"찬성":"반대"} · 글#${q.post_no}</span>${esc(q.text)}
+            </div></div>`).join("")}
+        </div>`;}).join("");
+    if(o.resonant && o.resonant.length){
+      html += `<div class="resonant reveal"><h3>🔥 공감을 얻은 반응</h3>` +
+        o.resonant.slice(0,5).map(r=>`<div class="resonant-item">
+          <b>${esc(r.text)}</b> <span class="why">— ${esc(r.why)} (글#${r.post_no})</span>
+        </div>`).join("") + `</div>`;
+    }
+    html += `</section>`;
+  }
+
+  if(o.entities.length){
+    html += `<section><div class="sec-head"><h2>언급된 대상</h2><span class="en">ENTITIES</span></div>
+      <p class="sec-sub">인물·제품·브랜드별 여론입니다. 점 색이 여론의 방향입니다.</p>` +
+      o.entities.map((e,i)=>`
+      <div class="entity reveal" style="--i:${i}">
+        <span class="s-dot ${esc(e.sentiment)}"></span>
+        <div class="entity-name">${esc(e.name)}<span class="type">${esc(e.type)} · ${esc(e.sentiment)}</span>
+          <span class="reason">${esc(e.reason)}</span></div>
+        <div></div>
+        <div class="entity-mentions"><b>${e.mentions}</b>회</div>
+      </div>`).join("") + `</section>`;
+  }
+
+  if(o.voices.length){
+    const groups = [["painpoint","불만","사람들이 불편하다고 말하는 것"],["wish","바람","~있으면 좋겠다, 바라는 것"],["idea","아이디어","스스로 제안한 생각들"]];
+    html += `<section><div class="sec-head"><h2>목소리</h2><span class="en">VOICES</span></div>
+      <p class="sec-sub">게시글에서 추출한 불만·바람·아이디어입니다. 인용은 원문 그대로입니다.</p>`;
+    for(const [kind, title, sub] of groups){
+      const vs = o.voices.filter(v=>v.kind===kind);
+      if(!vs.length) continue;
+      html += `<div class="voice-group"><h3>${title} <span class="n">${vs.length}건 · ${sub}</span></h3>` +
+        vs.map((v,i)=>`
+        <div class="voice g-${kind} reveal" style="--i:${i}">
+          <div class="voice-text">${esc(v.text)}</div>
+          ${v.quote?`<div class="voice-quote">“${esc(v.quote)}”</div>`:""}
+          <div class="voice-meta">근거 <span class="ref">글#${v.post_no}</span>${v.count>1?` · 유사 언급 ${v.count}회`:""}</div>
+        </div>`).join("") + `</div>`;
+    }
+    html += `</section>`;
+  }
+
+  if(o.top_posts.length){
+    html += `<section><div class="sec-head"><h2>가장 공감받은 글</h2><span class="en">MOST RESONANT</span></div>
+      <p class="sec-sub">추천수 기준 상위 글입니다.</p>` +
+      o.top_posts.map((p,i)=>`
+      <div class="rank reveal" style="--i:${i}">
+        <div class="rank-no">${String(i+1).padStart(2,"0")}</div>
+        <div class="rank-title">${esc(p.title)}</div>
+        <div class="rank-nums"><b>▲${p.recommend}</b><br><span class="v">조회 ${Number(p.views||0).toLocaleString()}</span></div>
+      </div>`).join("") + `</section>`;
+  }
+
+  el.innerHTML = html;
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }});
+  }, {threshold:.12, rootMargin:"0px 0px -40px 0px"});
+  document.querySelectorAll(".reveal,.axis").forEach(x=>io.observe(x));
+}
+
+async function loadGallery(id){
+  currentGallery = id;
+  document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("active", c.dataset.g===id));
+  $("#g-title").innerHTML = `관측 중<span class="dim">…</span>`;
+  try{
+    const res = await fetch(`/api/overview?gallery=${encodeURIComponent(id)}`);
+    const o = await res.json();
+    if(!o.measured){
+      $("#g-meta").innerHTML = ""; $("#counters").hidden = true; $("#pulse").hidden = true;
+      renderContent(o); $("#g-title").textContent = GALLERY_NAMES[id]||id;
+      return;
+    }
+    renderHeader(o); renderContent(o);
+  }catch(e){
+    $("#g-title").textContent = "불러오기 실패";
+    $("#content").innerHTML = `<div class="empty"><div class="icon">⚠️</div>
+      <h2>데이터를 가져오지 못했습니다</h2><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+async function init(){
+  try{
+    const gals = await (await fetch("/api/galleries")).json();
+    const chips = $("#chips");
+    const measured = gals.filter(g=>g.measured);
+    const list = measured.length ? measured.concat(gals.filter(g=>!g.measured)) : gals;
+    chips.innerHTML = list.map(g=>
+      `<button class="chip" data-g="${esc(g.id)}">${esc(GALLERY_NAMES[g.id]||g.id)}<span class="m">${g.posts}글${g.measured?"":" ·미측정"}</span></button>`
+    ).join("");
+    chips.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>loadGallery(c.dataset.g)));
+    document.body.classList.add("ready");
+    if(measured.length) await loadGallery(measured[0].id);
+    else if(gals.length){ await loadGallery(gals[0].id); }
+    else{
+      $("#g-title").textContent = "관측 기록 없음";
+      $("#content").innerHTML = `<div class="empty"><div class="icon">🔭</div>
+        <h2>아직 수집된 갤러리가 없습니다</h2>
+        <p><code>dch collect --gallery programming --pages 1</code> 으로 시작하세요</p></div>`;
+    }
+  }catch(e){
+    document.body.classList.add("ready");
+    $("#g-title").textContent = "서버 연결 실패";
+  }
+}
+init();
+</script>
+</body>
+</html>
