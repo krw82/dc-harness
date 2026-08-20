@@ -366,6 +366,11 @@ footer .cmd{color:var(--amber); opacity:.75}
   border:1px solid rgba(139,147,255,.2); animation:refIn .5s ease both}
 .ask-ref{color:var(--amber); cursor:pointer; font-family:var(--mono); font-size:12px}
 .ask-ref:hover{text-shadow:0 0 10px var(--amber-glow)}
+/* 메인 화면 질문 섹션 */
+.ask-row.main input{padding:15px 18px; font-size:14.5px; border-radius:12px}
+.ask-row.main input:focus{border-color:rgba(255,180,84,.55);
+  box-shadow:0 0 0 3px rgba(255,180,84,.12)}
+.ask-row.main button{padding:0 22px; font-size:12px; border-radius:12px}
 .mini-btn{font-family:var(--mono); font-size:10px; letter-spacing:.08em; color:var(--text-2);
   background:transparent; border:1px solid var(--hairline-soft); border-radius:999px;
   padding:4px 11px; cursor:pointer; margin-left:auto; transition:all .25s}
@@ -415,6 +420,16 @@ footer .cmd{color:var(--amber); opacity:.75}
 
   <div class="counters" id="counters" hidden></div>
   <div class="chips" id="chips"></div>
+
+  <section id="ask-sec" hidden>
+    <div class="sec-head reveal"><h2>관측소에 질문하기</h2><span class="en">ASK</span></div>
+    <p class="sec-sub reveal" style="--i:1">측정된 이 갤러리에 자연어로 물으면 온톨로지 도구가 조사해 근거 [글#번호]와 함께 답합니다.<br>답변의 글 번호를 클릭하면 원문이 바로 열립니다.</p>
+    <div class="ask-row main reveal" style="--i:2">
+      <input id="q-input" placeholder="예: 요즘 어떤 주제로 갈등하지? 사람들은 뭘 바라지?" maxlength="500">
+      <button id="q-send">질문 ↗</button>
+    </div>
+    <div class="ask-answer" id="q-answer" hidden></div>
+  </section>
 
   <div id="content"></div>
 
@@ -470,16 +485,6 @@ footer .cmd{color:var(--amber); opacity:.75}
       <div class="job-detail" id="job-detail"></div>
       <div class="joblog" id="job-log"></div>
       <div class="job-summary" id="job-summary" hidden></div>
-    </section>
-
-    <section>
-      <h4>질문 콘솔 <span class="en">ASK</span></h4>
-      <p class="deck-note">측정된 갤러리에 자연어로 질문하면 온톨로지 도구가 조사해 근거 [글#번호]와 함께 답합니다.</p>
-      <div class="ask-row">
-        <input id="q-input" placeholder="예: 요즘 어떤 주제로 갈등하지?" maxlength="500">
-        <button id="q-send">질문</button>
-      </div>
-      <div class="ask-answer" id="q-answer" hidden></div>
     </section>
 
     <section>
@@ -785,9 +790,12 @@ async function loadGallery(id){
     const o = await res.json();
     if(!o.measured){
       $("#g-meta").innerHTML = ""; $("#counters").hidden = true; $("#pulse").hidden = true;
+      $("#ask-sec").hidden = true; $("#q-answer").hidden = true;
       renderContent(o); $("#g-title").textContent = GALLERY_NAMES[id]||id;
       return;
     }
+    $("#ask-sec").hidden = false;
+    $("#q-answer").hidden = (answeredGallery !== id);   // 이 갤러리의 답변만
     renderHeader(o); renderContent(o);
   }catch(e){
     $("#g-title").textContent = "불러오기 실패";
@@ -819,6 +827,7 @@ function closeDeck(){
 
 let lastLogHtml = "";
 let lastAnswerKey = "";
+let answeredGallery = null;
 
 function renderJob(j){
   const sec = $("#job-sec");
@@ -842,10 +851,11 @@ function renderJob(j){
     if(key !== lastAnswerKey){
       lastAnswerKey = key;
       const ans = $("#q-answer");
-      ans.hidden = false;
       ans.innerHTML = esc(j.result).replace(/\[글#(\d+)\]/g,
         (m,n)=>`<span class="ask-ref" data-post="${n}" data-gallery="${esc(j.gallery)}">${m}</span>`);
     }
+    answeredGallery = j.gallery;              // 답변은 그 갤러리를 볼 때만 표시
+    $("#q-answer").hidden = (j.gallery !== currentGallery);
   }
 }
 
@@ -903,7 +913,7 @@ async function startRun(){
 async function askSubmit(){
   const question = $("#q-input").value.trim();
   if(!question) return;
-  const gallery = $("#f-gallery").value.trim() || currentGallery;
+  const gallery = currentGallery;
   const ans = $("#q-answer");
   ans.hidden = false;
   ans.textContent = "질문을 접수했습니다 — 온톨로지 도구가 조사 중… (수 분)";
@@ -969,10 +979,10 @@ async function init(){
     ).join("");
     chips.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>loadGallery(c.dataset.g)));
     $("#g-list").innerHTML = gals.map(g=>`<option value="${esc(g.id)}">`).join("");
-    // 이벤트 위임 — 렌더링이 갱신돼도 유지됨
-    $("#content").addEventListener("click",(ev)=>{
+    // 이벤트 위임(문서 레벨) — 렌더링이 갱신돼도, 메인·드로어 어디서든 동작
+    document.addEventListener("click",(ev)=>{
       const p = ev.target.closest("[data-post]");
-      if(p){ openPost(+p.dataset.post); return; }
+      if(p){ openPost(+p.dataset.post, p.dataset.gallery); return; }
       const b = ev.target.closest(".refs-btn");
       if(b){ toggleRefs(b, JSON.parse(b.dataset.nos)); }
     });
@@ -993,10 +1003,6 @@ async function init(){
     $("#runs-refresh").addEventListener("click", loadRuns);
     $("#calls-refresh").addEventListener("click", loadCalls);
     $("#rep-open").addEventListener("click", showReport);
-    $("#deck").addEventListener("click",(ev)=>{
-      const p = ev.target.closest("[data-post]");
-      if(p) openPost(+p.dataset.post, p.dataset.gallery);
-    });
     setInterval(pollStatus, 2000);
     document.body.classList.add("ready");
     if(measured.length) await loadGallery(measured[0].id);
