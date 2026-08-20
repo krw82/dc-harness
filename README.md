@@ -11,9 +11,9 @@ DC Inside 갤러리별 관심사·여론·트렌드·니즈(VOC)를 분석하는
     export MOTIF_API_KEY=...        # LLM API 키 (필수, 소스에 금지)
     export DC_COOKIES="name1=v1; name2=v2"   # 선택: DC 차단 시 브라우저 쿠키
 
-    dch run --gallery crypto --days 7 --pages 3   # 수집→분석→리포트
-    dch ingest --gallery crypto --file dump.jsonl # 파일 기반 대체 수집
-    dch report --gallery crypto --days 7          # 리포트 재생성
+    krw-ontology-dc run --gallery crypto --days 7 --pages 3   # 수집→분석→리포트
+    krw-ontology-dc ingest --gallery crypto --file dump.jsonl # 파일 기반 대체 수집
+    krw-ontology-dc report --gallery crypto --days 7          # 리포트 재생성
 
 ### 아카이브 갤러리와 댓글 (실측 2026-08)
 
@@ -44,9 +44,9 @@ DC Inside 갤러리별 관심사·여론·트렌드·니즈(VOC)를 분석하는
 
 ## 온톨로지 (의미 계층)
 
-- 정의: `dc_harness/ontology/ontology.toml` (유일 원천). `dch ontology`로 인쇄.
+- 정의: `dc_harness/ontology/ontology.toml` (유일 원천). `krw-ontology-dc ontology`로 인쇄.
 - 원본(posts/comments)은 불변, 분석 결과는 파생 객체(obj_*)로 run 단위 SNAPSHOT 저장.
 - 모든 파생 행은 run_id·prompt_version·근거 글 번호를 포함 (lineage).
-- 탐색: `dch query --object Topic --gallery crypto` / `dch show --gallery crypto --post 101`
-- 질의: `dch ask --gallery crypto "최근 관심사는?"` (읽기 전용 도구 3종, 인용 강제)
+- 탐색: `krw-ontology-dc query --object Topic --gallery crypto` / `krw-ontology-dc show --gallery crypto --post 101`
+- 질의: `krw-ontology-dc ask --gallery crypto "최근 관심사는?"` (읽기 전용 도구 3종, 인용 강제)
 - 규칙: CONVENTIONS.md 참조. 모든 LLM 호출은 llm_calls에 감사 기록됨.

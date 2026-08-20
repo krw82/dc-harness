@@ -1,6 +1,6 @@
 """초경량 로컬 웹 뷰어·관제판 — 1인용. stdlib http.server만 사용.
 
-실행: .venv/bin/dch web   →  http://127.0.0.1:8765
+실행: .venv/bin/krw-ontology-dc web   →  http://127.0.0.1:8765
 읽기(뷰어) + 측정·질문 작업 시작(관제판). 자격증명은 환경변수로만(.env.local은 로컬 전용).
 """
 from __future__ import annotations

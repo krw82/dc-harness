@@ -21,7 +21,7 @@ from .store import Store
 
 Emit = Callable[..., None]
 
-_KINDS = ["topics", "sentiment", "entities", "voices"]  # dch run 기본값과 동일
+_KINDS = ["topics", "sentiment", "entities", "voices"]  # krw-ontology-dc run 기본값과 동일
 
 
 class JobBusyError(RuntimeError):
@@ -113,7 +113,7 @@ class JobManager:
 
 def run_pipeline(db_path: Path, cfg: Config, gallery: str, days: int,
                  pages: int, minor: bool, emit: Emit) -> str:
-    """collect → analyze → materialize → report. `dch run` 과 동일 흐름 + 진행 이벤트."""
+    """collect → analyze → materialize → report. `krw-ontology-dc run` 과 동일 흐름 + 진행 이벤트."""
     import os
 
     from .analyze.trends import TrendAnalyzer
@@ -187,7 +187,7 @@ def run_pipeline(db_path: Path, cfg: Config, gallery: str, days: int,
 
 
 def ask_job(db_path: Path, cfg: Config, gallery: str, question: str, emit: Emit) -> str:
-    """온톨로지 도구 기반 질의(dch ask) — 읽기 전용, 근거 인용 포함 답변."""
+    """온톨로지 도구 기반 질의(krw-ontology-dc ask) — 읽기 전용, 근거 인용 포함 답변."""
     from .cli import _make_llm
     from .ontology.ask import ask
     from .ontology.defn import load_ontology

@@ -3,7 +3,7 @@
 ## 이름
 - 객체·링크 api_name: 영문 PascalCase. 속성: camelCase. 한글은 description에만.
 - 원본 컬럼명(DC HTML 등)을 이름으로 재사용 금지 — 업무 의미로 재명명.
-- 새 Object/Link 정의 전 `dch ontology --json | grep` 으로 기존 정의 검색 (중복 금지).
+- 새 Object/Link 정의 전 `krw-ontology-dc ontology --json | grep` 으로 기존 정의 검색 (중복 금지).
 - 이름 정규화는 store 적재 시 1회. 이후 계층에서 재명명 금지 (lineage 보존).
 
 ## 모델 경계

@@ -109,7 +109,7 @@ def _cmd_report(args, cfg: Config, llm_factory=None) -> int:
     with Store(Path(args.db)) as store:
         analyses = store.latest_analyses(args.gallery, start, end)
         if not analyses:
-            print("분석 결과가 없습니다. 먼저 `dch analyze`를 실행하세요.", file=sys.stderr)
+            print("분석 결과가 없습니다. 먼저 `krw-ontology-dc analyze`를 실행하세요.", file=sys.stderr)
             return 1
         top = store.top_posts(args.gallery, start, end)
         md, payload = render_report(args.gallery, start, end, analyses, top, {})
@@ -182,7 +182,7 @@ def _cmd_web(args, cfg: Config) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="dch", description="DC Inside gallery opinion research harness")
+        prog="krw-ontology-dc", description="DC Inside gallery opinion research harness")
     parser.add_argument("--config", type=Path, default=None)
     sub = parser.add_subparsers(dest="command", required=True)
 

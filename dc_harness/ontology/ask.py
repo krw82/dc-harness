@@ -26,7 +26,7 @@ def enrich_numeric_answer(store: Store, gallery_id: str, answer: str) -> str:
         if row:
             parts.append(f"{row['label']} [글#{no}]")
     if not parts:
-        return answer + "\n(해당 글과 연결된 토픽 없음 — dch show로 직접 확인 권장)"
+        return answer + "\n(해당 글과 연결된 토픽 없음 — krw-ontology-dc show로 직접 확인 권장)"
     return "질문과 관련된 주제: " + ", ".join(parts)
 
 

@@ -456,7 +456,7 @@ footer .cmd{color:var(--amber); opacity:.75}
 
   <footer>
     <div id="foot-left">모든 주장은 근거 글 번호로 추적됩니다 · 개인 연구용</div>
-    <div>재측정 <span class="cmd">dch run --gallery &lt;id&gt; --days 7</span></div>
+    <div>재측정 <span class="cmd">krw-ontology-dc run --gallery &lt;id&gt; --days 7</span></div>
   </footer>
 </div>
 
@@ -758,7 +758,7 @@ function renderContent(o){
     el.innerHTML = `<div class="empty"><div class="icon">🔭</div>
       <h2>아직 이 갤러리는 관측 기록이 없습니다</h2>
       <p>아래 명령으로 측정(수집→분석)을 먼저 실행하세요<br><br>
-      <code>dch run --gallery ${esc(o.gallery)} --days 7</code></p></div>`;
+      <code>krw-ontology-dc run --gallery ${esc(o.gallery)} --days 7</code></p></div>`;
     return;
   }
   let html = "";
@@ -1094,7 +1094,7 @@ async function init(){
       $("#g-title").textContent = "관측 기록 없음";
       $("#content").innerHTML = `<div class="empty"><div class="icon">🔭</div>
         <h2>아직 수집된 갤러리가 없습니다</h2>
-        <p><code>dch collect --gallery programming --pages 1</code> 으로 시작하세요</p></div>`;
+        <p><code>krw-ontology-dc collect --gallery programming --pages 1</code> 으로 시작하세요</p></div>`;
     }
   }catch(e){
     document.body.classList.add("ready");

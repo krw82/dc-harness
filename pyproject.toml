@@ -9,7 +9,7 @@ dependencies = ["openai>=1.40", "httpx>=0.27", "beautifulsoup4>=4.12"]
 dev = ["pytest>=8", "ruff>=0.5"]
 
 [project.scripts]
-dch = "dc_harness.cli:main"
+krw-ontology-dc = "dc_harness.cli:main"
 
 [build-system]
 requires = ["hatchling"]
