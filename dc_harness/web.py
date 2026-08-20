@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -121,9 +122,27 @@ class ViewerHandler(BaseHTTPRequestHandler):
         self._send(*route(self.store, parsed.path, parsed.query))
 
 
+def _thread_local_stores(db_path: Path):
+    """스레드별 Store 팩토리 — http.server가 요청마다 새 스레드를 쓰므로
+    sqlite 연결은 스레드 로컬로 각각 생성한다."""
+    tls = threading.local()
+
+    def get() -> Store:
+        if not hasattr(tls, "store"):
+            tls.store = Store(db_path)
+        return tls.store
+    return get
+
+
 def run_server(db_path: Path, port: int = 8765) -> None:
-    handler = type("BoundHandler", (ViewerHandler,), {"store": Store(db_path)})
-    server = ThreadingHTTPServer(("127.0.0.1", port), handler)  # 로컬 전용
+    get_store = _thread_local_stores(db_path)
+
+    class BoundHandler(ViewerHandler):
+        @property
+        def store(self) -> Store:
+            return get_store()
+
+    server = ThreadingHTTPServer(("127.0.0.1", port), BoundHandler)  # 로컬 전용
     print(f"여론 관측소 가동: http://127.0.0.1:{port}  (종료: Ctrl+C)")
     try:
         server.serve_forever()

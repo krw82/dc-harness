@@ -55,3 +55,24 @@ def test_route_endpoints(tmp_path: Path):
 
         assert route(store, "/api/overview", "gallery=bad;id")[0] == 400
         assert route(store, "/nope", "")[0] == 404
+
+
+def test_thread_local_stores_isolated(tmp_path: Path):
+    import threading as T
+
+    from dc_harness.web import _thread_local_stores
+
+    db = seed(tmp_path)
+    get = _thread_local_stores(db)
+    main_store = get()
+    results = {}
+
+    def worker():
+        results["store"] = get()
+        results["gals"] = api_galleries(get())  # 다른 스레드에서도 동작
+
+    t = T.Thread(target=worker)
+    t.start()
+    t.join()
+    assert results["store"] is not main_store          # 스레드별 별개 연결
+    assert any(g["id"] == "crypto" for g in results["gals"])
