@@ -21,7 +21,7 @@
   --sans:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth; background:#0B0E1A}
 body{
   font-family:var(--sans); color:var(--text); min-height:100vh;
   background:
@@ -436,8 +436,11 @@ function renderContent(o){
   el.innerHTML = html;
   const io = new IntersectionObserver(entries=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }});
-  }, {threshold:.12, rootMargin:"0px 0px -40px 0px"});
+  }, {threshold:.05, rootMargin:"120px 0px -20px 0px"});
   document.querySelectorAll(".reveal,.axis").forEach(x=>io.observe(x));
+  // 폴백: 관측 누락(캡처·빈 뷰포트 등)이어도 1.4s 후에는 모두 표시
+  setTimeout(()=>document.querySelectorAll(".reveal:not(.in),.axis:not(.in)")
+    .forEach(x=>x.classList.add("in")), 1400);
 }
 
 async function loadGallery(id){
