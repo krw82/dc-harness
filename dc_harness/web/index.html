@@ -223,6 +223,73 @@ footer .cmd{color:var(--amber); opacity:.75}
 .empty code{font-family:var(--mono); font-size:12px; color:var(--amber);
   background:rgba(255,180,84,.08); padding:3px 10px; border-radius:6px}
 
+/* ── 근거 글 버튼 / 펼침 목록 ─────────── */
+.refs-btn{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; color:var(--text-2);
+  background:transparent; border:1px solid var(--hairline-soft); border-radius:999px;
+  padding:5px 13px; cursor:pointer; margin-top:12px; transition:all .25s ease}
+.refs-btn:hover, .refs-btn.open{color:var(--amber); border-color:rgba(255,180,84,.4)}
+.refs-btn.open{background:rgba(255,180,84,.06)}
+.refs-list{overflow:hidden; max-height:0; transition:max-height .55s cubic-bezier(.22,1,.36,1)}
+.refs-list.in{max-height:640px}
+.ref-row{display:grid; grid-template-columns:1fr auto; gap:3px 14px; padding:11px 14px; margin-top:8px;
+  border:1px solid var(--hairline-soft); border-radius:10px; background:rgba(11,14,26,.45);
+  cursor:pointer; transition:border-color .25s, transform .25s;
+  opacity:0; transform:translateY(8px); animation:refIn .45s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes refIn{to{opacity:1; transform:none}}
+.ref-row:hover{border-color:rgba(255,180,84,.35); transform:translateX(3px)}
+.ref-title{font-size:13px; font-weight:600; line-height:1.45}
+.ref-reco{font-family:var(--mono); font-size:11.5px; color:var(--amber)}
+.ref-sub{grid-column:1/-1; font-family:var(--mono); font-size:10.5px; color:var(--text-3)}
+.ref-sub .au{color:var(--idea)}
+
+/* ── 클릭 가능한 인용 ─────────────────── */
+.ref-link{font:inherit; color:inherit; background:none; border:none; padding:0 1px; cursor:pointer}
+.topic-refs .ref-link{color:var(--amber); opacity:.85; transition:opacity .2s, text-shadow .2s}
+.topic-refs .ref-link:hover{opacity:1; text-shadow:0 0 12px var(--amber-glow)}
+.quote .stance{cursor:pointer; transition:text-shadow .2s}
+.quote .stance:hover{text-shadow:0 0 10px currentColor}
+.voice-meta .ref{cursor:pointer}
+.voice-meta .ref:hover{opacity:1; text-shadow:0 0 10px var(--amber-glow)}
+.resonant-item .why span[data-post]{cursor:pointer; color:var(--amber); opacity:.8}
+.resonant-item .why span[data-post]:hover{opacity:1; text-shadow:0 0 10px var(--amber-glow)}
+.rank{cursor:pointer}
+
+/* ── 원문 모달 ────────────────────────── */
+.modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:center;
+  justify-content:center; padding:24px; background:rgba(6,8,16,.62);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  opacity:0; transition:opacity .35s ease}
+.modal-backdrop[hidden]{display:none}
+.modal-backdrop.on{opacity:1}
+.modal{width:min(720px,100%); max-height:min(82vh,780px); display:flex; flex-direction:column;
+  background:linear-gradient(180deg,#141930,#0F1426); border:1px solid rgba(148,158,198,.22);
+  border-radius:18px; box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,180,84,.06);
+  transform:translateY(26px) scale(.96); opacity:0;
+  transition:transform .5s cubic-bezier(.22,1.4,.36,1), opacity .3s ease}
+.modal-backdrop.on .modal{transform:none; opacity:1}
+.modal .st{opacity:0; transform:translateY(10px);
+  transition:opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1)}
+.modal-backdrop.on .modal .st{opacity:1; transform:none}
+.modal-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px 26px 0}
+.modal-no{font-family:var(--mono); font-size:11px; color:var(--amber); letter-spacing:.18em; margin-bottom:8px}
+.modal-title{font-size:19px; font-weight:750; letter-spacing:-.02em; line-height:1.4;
+  max-height:110px; overflow:hidden}
+.modal-x{flex:none; width:34px; height:34px; border-radius:50%; border:1px solid var(--hairline);
+  background:transparent; color:var(--text-2); font-size:14px; cursor:pointer; display:grid;
+  place-items:center; transition:all .3s ease}
+.modal-x:hover{color:var(--text); border-color:var(--text-3); transform:rotate(90deg)}
+.modal-meta{display:flex; flex-wrap:wrap; gap:8px 18px; padding:14px 26px;
+  border-bottom:1px solid var(--hairline-soft); font-family:var(--mono); font-size:11.5px; color:var(--text-2)}
+.modal-meta b{color:var(--text); font-weight:500}
+.modal-meta .au{color:var(--idea); cursor:help}
+.modal-body{padding:20px 26px 8px; overflow-y:auto; font-size:14px; line-height:1.85;
+  white-space:pre-wrap; word-break:break-word}
+.modal-foot{padding:14px 26px 22px; display:flex; justify-content:flex-end}
+.modal-link{font-family:var(--mono); font-size:11.5px; color:var(--amber); text-decoration:none;
+  border:1px solid rgba(255,180,84,.3); padding:8px 16px; border-radius:999px; transition:all .25s}
+.modal-link:hover{background:rgba(255,180,84,.1); box-shadow:0 4px 14px rgba(255,180,84,.15)}
+.modal-load{padding:56px 0; text-align:center; font-family:var(--mono); font-size:12px; color:var(--text-3)}
+
 @media (max-width:680px){
   .counters{grid-template-columns:repeat(3,1fr)}
   .counter:nth-child(4)::before{display:none}
@@ -258,6 +325,18 @@ footer .cmd{color:var(--amber); opacity:.75}
     <div id="foot-left">모든 주장은 근거 글 번호로 추적됩니다 · 개인 연구용</div>
     <div>재측정 <span class="cmd">dch run --gallery &lt;id&gt; --days 7</span></div>
   </footer>
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop" hidden>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="원문 게시글">
+    <div class="modal-head st" style="transition-delay:.08s">
+      <div><div class="modal-no" id="m-no"></div><div class="modal-title" id="m-title"></div></div>
+      <button class="modal-x" id="m-x" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-meta st" style="transition-delay:.16s" id="m-meta"></div>
+    <div class="modal-body st" style="transition-delay:.24s" id="m-body"></div>
+    <div class="modal-foot st" style="transition-delay:.32s" id="m-foot"></div>
+  </div>
 </div>
 
 <script>
@@ -320,6 +399,84 @@ function drawPulse(activity){
   $("#p-end").textContent = activity[activity.length-1].date.slice(5).replace("-",".");
 }
 
+/* ── 원문 조회 · 모달 ── */
+const MINOR_GALLERIES = {thesingularity:1};
+const postCache = new Map();
+const fmtAuthor = (a)=>a ? `@${a.slice(0,4)}…${a.slice(-4)}` : "@미상";
+const fmtDate = (s)=>{
+  if(!s) return "—";
+  const d = new Date(String(s).replace(" ","T"));
+  if(isNaN(d)) return s;
+  const z=(n)=>String(n).padStart(2,"0");
+  return `${z(d.getMonth()+1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+};
+const dcUrl = (g,no)=>(MINOR_GALLERIES[g]
+  ? "https://gall.dcinside.com/mgallery/board/view/"
+  : "https://gall.dcinside.com/board/view/") + `?id=${encodeURIComponent(g)}&no=${no}`;
+
+async function fetchPosts(nos){
+  const key=(n)=>`${currentGallery}:${n}`;
+  const miss = nos.filter(n=>!postCache.has(key(n)));
+  if(miss.length){
+    const res = await fetch(`/api/posts?gallery=${encodeURIComponent(currentGallery)}&nos=${miss.join(",")}`);
+    (await res.json()).forEach(p=>postCache.set(key(p.post_no), p));
+  }
+  return nos.map(n=>postCache.get(key(n))).filter(Boolean);
+}
+
+async function openPost(no){
+  const bd = $("#modal-backdrop");
+  bd.hidden = false;
+  requestAnimationFrame(()=>bd.classList.add("on"));
+  $("#m-no").textContent = ""; $("#m-title").textContent = "";
+  $("#m-meta").innerHTML = ""; $("#m-foot").innerHTML = "";
+  $("#m-body").innerHTML = `<div class="modal-load">원문을 가져오는 중…</div>`;
+  $("#m-x").focus();
+  const [p] = await fetchPosts([no]);
+  if(!p){ $("#m-body").innerHTML = `<div class="modal-load">글 #${no} 원문이 저장소에 없습니다</div>`; return; }
+  $("#m-no").textContent = `POST #${p.post_no} · 근거 원문`;
+  $("#m-title").textContent = p.title;
+  $("#m-meta").innerHTML =
+    `<span>글쓴이 <b class="au" title="동일 작성자 구분용 익명 식별자(원 닉네임 미보관)">${fmtAuthor(p.author)}</b></span>`+
+    `<span>작성 <b>${fmtDate(p.created_at)}</b></span>`+
+    `<span>추천 <b style="color:var(--amber)">${p.recommend}</b></span>`+
+    `<span>조회 <b>${Number(p.views||0).toLocaleString()}</b></span>`;
+  $("#m-body").textContent = p.body || "(본문 없음)";
+  $("#m-foot").innerHTML =
+    `<a class="modal-link" href="${dcUrl(currentGallery,p.post_no)}" target="_blank" rel="noopener">DC 원문 보기 ↗</a>`;
+}
+
+function closeModal(){
+  const bd = $("#modal-backdrop");
+  bd.classList.remove("on");
+  setTimeout(()=>{ bd.hidden = true; }, 360);
+}
+
+async function toggleRefs(btn, nos){
+  const list = btn.parentElement.querySelector(".refs-list");
+  const single = nos.length===1;
+  const closed = "관련 게시글 " + nos.length + "건 보기 ▾";
+  const closedOne = "원문 보기 ▾";
+  if(list.classList.contains("in")){
+    list.classList.remove("in"); btn.classList.remove("open");
+    btn.textContent = single ? closedOne : closed;
+    return;
+  }
+  if(!list.dataset.loaded){
+    list.innerHTML = `<div class="modal-load">근거 글을 가져오는 중…</div>`;
+    const posts = await fetchPosts(nos);
+    list.innerHTML = posts.map((p,i)=>`
+      <div class="ref-row" style="animation-delay:${i*70}ms" data-post="${p.post_no}">
+        <div class="ref-title">${esc(p.title)}</div>
+        <div class="ref-reco">▲${p.recommend}</div>
+        <div class="ref-sub">${fmtDate(p.created_at)} · <span class="au">${fmtAuthor(p.author)}</span> · 글#${p.post_no}</div>
+      </div>`).join("") || `<div class="modal-load">원문이 저장소에 없습니다</div>`;
+    list.dataset.loaded = "1";
+  }
+  list.classList.add("in"); btn.classList.add("open");
+  btn.textContent = "접기 ▴";
+}
+
 /* ── 렌더 ── */
 function renderHeader(o){
   $("#g-title").innerHTML = esc(GALLERY_NAMES[o.gallery]||o.gallery);
@@ -354,10 +511,11 @@ function renderContent(o){
       <div class="topic reveal" style="--i:${i}">
         <div class="topic-top">
           <div class="topic-label">${esc(t.label)}</div>
-          <div class="topic-refs">${(t.post_nos||[]).slice(0,6).map(n=>`#${n}`).join(" ")}</div>
+          <div class="topic-refs">${(t.post_nos||[]).slice(0,6).map(n=>`<button class="ref-link" data-post="${n}" title="원문 보기">#${n}</button>`).join(" ")}</div>
         </div>
         <div class="topic-keywords">${(t.keywords||[]).map(k=>`<span class="kw">${esc(k)}</span>`).join("")}</div>
         ${t.snippet?`<div class="topic-snippet">${esc(t.snippet)}</div>`:""}
+        ${(t.post_nos||[]).length?`<button class="refs-btn" data-nos='${JSON.stringify(t.post_nos)}'>관련 게시글 ${t.post_nos.length}건 보기 ▾</button><div class="refs-list"></div>`:""}
       </div>`).join("") + `</section>`;
   }
 
@@ -379,13 +537,13 @@ function renderContent(o){
           </div>
           ${(x.quotes||[]).slice(0,2).map(q=>`
             <div class="quotes"><div class="quote">
-              <span class="stance ${q.stance==="pro"?"pro":"con"}">${q.stance==="pro"?"찬성":"반대"} · 글#${q.post_no}</span>${esc(q.text)}
+              <span class="stance ${q.stance==="pro"?"pro":"con"}" data-post="${q.post_no}" title="원문 보기">${q.stance==="pro"?"찬성":"반대"} · 글#${q.post_no}</span>${esc(q.text)}
             </div></div>`).join("")}
         </div>`;}).join("");
     if(o.resonant && o.resonant.length){
       html += `<div class="resonant reveal"><h3>🔥 공감을 얻은 반응</h3>` +
         o.resonant.slice(0,5).map(r=>`<div class="resonant-item">
-          <b>${esc(r.text)}</b> <span class="why">— ${esc(r.why)} (글#${r.post_no})</span>
+          <b>${esc(r.text)}</b> <span class="why">— ${esc(r.why)} (<span data-post="${r.post_no}" title="원문 보기">글#${r.post_no}</span>)</span>
         </div>`).join("") + `</div>`;
     }
     html += `</section>`;
@@ -416,7 +574,8 @@ function renderContent(o){
         <div class="voice g-${kind} reveal" style="--i:${i}">
           <div class="voice-text">${esc(v.text)}</div>
           ${v.quote?`<div class="voice-quote">“${esc(v.quote)}”</div>`:""}
-          <div class="voice-meta">근거 <span class="ref">글#${v.post_no}</span>${v.count>1?` · 유사 언급 ${v.count}회`:""}</div>
+          <div class="voice-meta">근거 <span class="ref" data-post="${v.post_no}" title="원문 보기">글#${v.post_no}</span>${v.count>1?` · 유사 언급 ${v.count}회`:""}</div>
+          ${v.post_no?`<button class="refs-btn" data-nos="[${v.post_no}]">원문 보기 ▾</button><div class="refs-list"></div>`:""}
         </div>`).join("") + `</div>`;
     }
     html += `</section>`;
@@ -426,7 +585,7 @@ function renderContent(o){
     html += `<section><div class="sec-head"><h2>가장 공감받은 글</h2><span class="en">MOST RESONANT</span></div>
       <p class="sec-sub">추천수 기준 상위 글입니다.</p>` +
       o.top_posts.map((p,i)=>`
-      <div class="rank reveal" style="--i:${i}">
+      <div class="rank reveal" style="--i:${i}" data-post="${p.post_no}" title="원문 보기">
         <div class="rank-no">${String(i+1).padStart(2,"0")}</div>
         <div class="rank-title">${esc(p.title)}</div>
         <div class="rank-nums"><b>▲${p.recommend}</b><br><span class="v">조회 ${Number(p.views||0).toLocaleString()}</span></div>
@@ -473,6 +632,18 @@ async function init(){
       `<button class="chip" data-g="${esc(g.id)}">${esc(GALLERY_NAMES[g.id]||g.id)}<span class="m">${g.posts}글${g.measured?"":" ·미측정"}</span></button>`
     ).join("");
     chips.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>loadGallery(c.dataset.g)));
+    // 이벤트 위임 — 렌더링이 갱신돼도 유지됨
+    $("#content").addEventListener("click",(ev)=>{
+      const p = ev.target.closest("[data-post]");
+      if(p){ openPost(+p.dataset.post); return; }
+      const b = ev.target.closest(".refs-btn");
+      if(b){ toggleRefs(b, JSON.parse(b.dataset.nos)); }
+    });
+    $("#m-x").addEventListener("click", closeModal);
+    $("#modal-backdrop").addEventListener("click",(ev)=>{ if(ev.target.id==="modal-backdrop") closeModal(); });
+    document.addEventListener("keydown",(ev)=>{
+      if(ev.key==="Escape" && !$("#modal-backdrop").hidden) closeModal();
+    });
     document.body.classList.add("ready");
     if(measured.length) await loadGallery(measured[0].id);
     else if(gals.length){ await loadGallery(gals[0].id); }

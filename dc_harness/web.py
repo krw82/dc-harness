@@ -86,6 +86,21 @@ def api_overview(store: Store, gallery_id: str) -> dict:
     }
 
 
+def api_posts(store: Store, gallery_id: str, post_nos: list[int]) -> list[dict]:
+    """근거 글 원문 조회 — 호출점마다 정적 리터럴 SQL (I2)."""
+    out: list[dict] = []
+    for no in post_nos[:50]:
+        row = store.conn.execute(
+            "SELECT post_no, title, author_hash, created_at, views, recommend, body FROM posts WHERE gallery_id=? AND post_no=?",
+            (gallery_id, no)).fetchone()
+        if row is not None:
+            out.append({"post_no": row["post_no"], "title": row["title"],
+                        "author": row["author_hash"], "created_at": row["created_at"],
+                        "views": row["views"], "recommend": row["recommend"],
+                        "body": row["body"]})
+    return out
+
+
 def route(store: Store, path: str, query: str) -> tuple[int, bytes, str]:
     """요청 라우팅 (순수 함수 — 테스트는 소켓 없이 여기만 호출)."""
     if path == "/":
@@ -98,6 +113,16 @@ def route(store: Store, path: str, query: str) -> tuple[int, bytes, str]:
         if not gallery or not gallery.replace("_", "").isalnum():
             return 400, b"bad gallery", "text/plain; charset=utf-8"
         body = json.dumps(api_overview(store, gallery),
+                          ensure_ascii=False).encode("utf-8")
+        return 200, body, "application/json; charset=utf-8"
+    if path == "/api/posts":
+        q = parse_qs(query)
+        gallery = (q.get("gallery") or [""])[0]
+        raw_nos = (q.get("nos") or [""])[0]
+        if not gallery or not gallery.replace("_", "").isalnum() or not raw_nos.replace(",", "").isdigit():
+            return 400, b"bad query", "text/plain; charset=utf-8"
+        nos = [int(n) for n in raw_nos.split(",") if n][:50]
+        body = json.dumps(api_posts(store, gallery, nos),
                           ensure_ascii=False).encode("utf-8")
         return 200, body, "application/json; charset=utf-8"
     return 404, b"not found", "text/plain; charset=utf-8"

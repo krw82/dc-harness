@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dc_harness.models import RawPost
 from dc_harness.store import Store
-from dc_harness.web import api_galleries, api_overview, route
+from dc_harness.web import api_galleries, api_overview, api_posts, route
 
 
 def seed(tmp_path: Path) -> Path:
@@ -55,6 +55,24 @@ def test_route_endpoints(tmp_path: Path):
 
         assert route(store, "/api/overview", "gallery=bad;id")[0] == 400
         assert route(store, "/nope", "")[0] == 404
+
+
+def test_api_posts_returns_originals(tmp_path: Path):
+    with Store(seed(tmp_path)) as store:
+        posts = api_posts(store, "crypto", [101, 999])
+        assert len(posts) == 1                       # 없는 글 번호는 조용히 제외
+        p = posts[0]
+        assert p["post_no"] == 101 and p["title"] == "현물이 답"
+        assert set(p) == {"post_no", "title", "author", "created_at",
+                          "views", "recommend", "body"}
+        assert p["recommend"] == 42
+
+        code, body, ctype = route(store, "/api/posts", "gallery=crypto&nos=101")
+        assert code == 200 and "application/json" in ctype
+        assert json.loads(body)[0]["title"] == "현물이 답"
+
+        assert route(store, "/api/posts", "gallery=crypto&nos=abc")[0] == 400
+        assert route(store, "/api/posts", "nos=101")[0] == 400
 
 
 def test_thread_local_stores_isolated(tmp_path: Path):
