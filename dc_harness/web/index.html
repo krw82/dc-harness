@@ -254,6 +254,25 @@ footer .cmd{color:var(--amber); opacity:.75}
 .resonant-item .why span[data-post]:hover{opacity:1; text-shadow:0 0 10px var(--amber-glow)}
 .rank{cursor:pointer}
 
+/* ── 측정 리포트 카드 (메인) ───────────── */
+.report-card{padding:22px 24px; border:1px solid var(--hairline-soft); border-radius:14px;
+  background:var(--surface); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  transition:border-color .3s ease, transform .3s ease}
+.report-card:hover{border-color:rgba(255,180,84,.3); transform:translateY(-2px)}
+.report-path{font-family:var(--mono); font-size:10.5px; color:var(--text-3);
+  letter-spacing:.05em; margin-bottom:10px; word-break:break-all}
+.report-card ul{list-style:none; margin:0 0 14px}
+.report-card li{font-size:13px; color:var(--text-2); line-height:1.75;
+  padding:3px 0 3px 16px; position:relative}
+.report-card li::before{content:""; position:absolute; left:2px; top:12px; width:5px; height:5px;
+  border-radius:50%; background:var(--amber); opacity:.7}
+.report-open{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; color:var(--amber);
+  background:rgba(255,180,84,.06); border:1px solid rgba(255,180,84,.35); border-radius:999px;
+  padding:10px 22px; cursor:pointer; transition:all .25s ease}
+.report-open:hover{background:rgba(255,180,84,.14); box-shadow:0 4px 16px rgba(255,180,84,.2)}
+.report-load{padding:24px; text-align:center; font-family:var(--mono); font-size:11px; color:var(--text-3)}
+.report-none{font-size:13px; color:var(--text-3); line-height:1.7}
+
 /* ── 원문 모달 ────────────────────────── */
 .modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:center;
   justify-content:center; padding:24px; background:rgba(6,8,16,.62);
@@ -517,11 +536,6 @@ footer .cmd{color:var(--amber); opacity:.75}
       <h4>LLM 감사 로그 <span class="en">AUDIT</span><button class="mini-btn" id="calls-refresh">새로고침</button></h4>
       <p class="deck-note">모델 호출 전부 기록 — 프롬프트 버전·성공/실패·응답 발췌.</p>
       <div id="calls-list" class="calls-list"></div>
-    </section>
-
-    <section>
-      <h4>리포트 <span class="en">REPORT</span></h4>
-      <button class="mini-btn" id="rep-open" style="margin-left:0">현재 갤러리 리포트 보기</button>
     </section>
   </div>
 </aside>
@@ -851,7 +865,14 @@ function renderContent(o){
       </div>`).join("") + `</section>`;
   }
 
+  html += `<section id="report-sec">
+    <div class="sec-head reveal"><h2>측정 리포트</h2><span class="en">REPORT</span></div>
+    <p class="sec-sub reveal">이번 측정의 전체 문서 — 표·근거 글 번호를 포함합니다. 요약 미리보기 아래에서 전문을 열 수 있습니다.</p>
+    <div class="report-card reveal" id="report-teaser"><div class="report-load">리포트를 가져오는 중…</div></div>
+  </section>`;
+
   el.innerHTML = html;
+  fillReportSection(o.gallery);
   const io = new IntersectionObserver(entries=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); }});
   }, {threshold:.05, rootMargin:"120px 0px -20px 0px"});
@@ -1038,10 +1059,44 @@ async function loadCalls(){
   }catch{ $("#calls-list").innerHTML = `<div class="deck-note">불러오기 실패</div>`; }
 }
 
-async function showReport(){
-  const g = $("#f-gallery").value.trim() || currentGallery;
+const reportCache = new Map();
+
+async function fetchReport(gallery){
+  if(!reportCache.has(gallery)){
+    try{
+      reportCache.set(gallery, await (await fetch(`/api/report?gallery=${encodeURIComponent(gallery)}`)).json());
+    }catch{ reportCache.set(gallery, {found:false}); }
+  }
+  return reportCache.get(gallery);
+}
+
+async function fillReportSection(gallery){
+  const box = $("#report-teaser");
+  if(!box) return;
+  const rep = await fetchReport(gallery);
+  if(!rep.found){
+    box.innerHTML = `<p class="report-none">아직 이 갤러리의 저장된 리포트가 없습니다.<br>관제판에서 측정을 실행하면 생성됩니다.</p>`;
+    return;
+  }
+  const sumLines = [];
+  const idx = rep.markdown.indexOf("## 요약");
+  if(idx >= 0){
+    for(const l of rep.markdown.slice(idx).split("\n").slice(1)){
+      if(l.startsWith("## ")) break;
+      const t = l.trim();
+      if(t.startsWith("- ")) sumLines.push(t.slice(2));
+    }
+  }
+  box.innerHTML =
+    `<div class="report-path">${esc(rep.path)}</div>` +
+    (sumLines.length ? `<ul>${sumLines.slice(0,4).map(l=>`<li>${esc(l)}</li>`).join("")}</ul>` : "") +
+    `<button class="report-open" data-report="${esc(gallery)}">리포트 전문 보기 ↗</button>`;
+}
+
+async function showReport(g){
+  g = g || currentGallery;
   try{
-    const rep = await (await fetch(`/api/report?gallery=${encodeURIComponent(g)}`)).json();
+    const rep = await fetchReport(g);
     if(!rep.found){ openTextModal("REPORT", "리포트 없음",
       `${GALLERY_NAMES[g]||g} 갤러리의 저장된 리포트가 없습니다.\n먼저 측정을 실행하세요.`); return; }
     // 모달 헤더와 중복되는 리포트 첫 제목·기간 줄은 제외하고 렌더
@@ -1066,6 +1121,8 @@ async function init(){
     document.addEventListener("click",(ev)=>{
       const p = ev.target.closest("[data-post]");
       if(p){ openPost(+p.dataset.post, p.dataset.gallery); return; }
+      const rep = ev.target.closest("[data-report]");
+      if(rep){ showReport(rep.dataset.report); return; }
       const b = ev.target.closest(".refs-btn");
       if(b){ toggleRefs(b, JSON.parse(b.dataset.nos)); }
     });
@@ -1085,7 +1142,6 @@ async function init(){
     $("#q-input").addEventListener("keydown",(ev)=>{ if(ev.key==="Enter") askSubmit(); });
     $("#runs-refresh").addEventListener("click", loadRuns);
     $("#calls-refresh").addEventListener("click", loadCalls);
-    $("#rep-open").addEventListener("click", showReport);
     setInterval(pollStatus, 2000);
     document.body.classList.add("ready");
     if(measured.length) await loadGallery(measured[0].id);
