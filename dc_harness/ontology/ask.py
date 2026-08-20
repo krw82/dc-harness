@@ -43,6 +43,9 @@ def ask(store: Store, defn: OntologyDef, llm: LlmClient, gallery_id: str,
     retried = False
     for _step in range(max_steps):
         result = llm.chat_json(system, transcript)
+        if isinstance(result, list):
+            # 모델이 {"answer": ...} 대신 배열을 바로 반환하는 경우(실측) — 답 후보로 흡수
+            result = {"answer": ", ".join(str(x) for x in result)}
         store.log_llm_call(run_id, "ask", system, transcript,
                            json.dumps(result, ensure_ascii=False),
                            getattr(llm, "model", "unknown"), "ask-v1")

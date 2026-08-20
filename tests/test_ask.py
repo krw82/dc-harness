@@ -71,3 +71,14 @@ def test_ask_enforces_citation_once(tmp_path: Path):
     assert "근거 인용 없음" in answer
     # 재시도 프롬프트에 인용 요구 문구가 전달됐는지
     assert "근거 인용" in llm.users[-1] or "인용" in llm.users[-1]
+
+
+def test_ask_absorbs_bare_array_response(tmp_path: Path):
+    # 실측: 모델이 [2937658] 처럼 배열을 바로 반환하는 경우
+    store = seed(tmp_path)
+    llm = ScriptedLlm([
+        [2937658],
+        {"answer": "최근 관심 주제는 현물 매수입니다. 근거: [글#101]"},
+    ])
+    answer = ask(store, load_ontology(None), llm, "crypto", "관심사는?")
+    assert "현물 매수" in answer and "글#101" in answer
