@@ -290,6 +290,27 @@ footer .cmd{color:var(--amber); opacity:.75}
 .modal-link:hover{background:rgba(255,180,84,.1); box-shadow:0 4px 14px rgba(255,180,84,.15)}
 .modal-load{padding:56px 0; text-align:center; font-family:var(--mono); font-size:12px; color:var(--text-3)}
 
+/* ── 리포트 마크다운 렌더 ───────────────── */
+.modal-body.md{white-space:normal}
+.modal-body .md-h{letter-spacing:-.02em; font-weight:750; margin:22px 0 8px; line-height:1.35}
+.modal-body h3.md-h{font-size:17px; color:var(--amber); margin-top:26px}
+.modal-body h4.md-h{font-size:14.5px}
+.modal-body h5.md-h{font-size:13px; color:var(--text-2)}
+.modal-body .md-p{font-size:13px; color:var(--text-2); line-height:1.75; margin:8px 0}
+.modal-body .md-ul{list-style:none; margin:10px 0}
+.modal-body .md-ul li{font-size:13px; color:var(--text-2); line-height:1.75; padding:3px 0 3px 16px; position:relative}
+.modal-body .md-ul li::before{content:""; position:absolute; left:2px; top:13px; width:5px; height:5px;
+  border-radius:50%; background:var(--amber); opacity:.7}
+.modal-body .md-hr{border:none; border-top:1px solid var(--hairline-soft); margin:18px 0}
+.modal-body .md-t{width:100%; border-collapse:collapse; margin:14px 0; font-size:12.5px; display:table}
+.modal-body .md-t th{font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--text-3);
+  text-align:left; padding:8px 10px; border-bottom:1px solid var(--hairline); white-space:nowrap}
+.modal-body .md-t td{padding:8px 10px; border-bottom:1px solid var(--hairline-soft);
+  color:var(--text-2); line-height:1.6; vertical-align:top}
+.modal-body .md-t tr:hover td{background:rgba(148,158,198,.05)}
+.modal-body code{font-family:var(--mono); font-size:11.5px; color:var(--amber);
+  background:rgba(255,180,84,.08); padding:2px 7px; border-radius:5px}
+
 /* ── 관제판 (컨트롤 덱) ────────────────── */
 .deck-btn{position:fixed; right:22px; bottom:22px; z-index:40;
   font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; color:var(--text-2);
@@ -597,6 +618,7 @@ async function openPost(no, gallery){
   requestAnimationFrame(()=>bd.classList.add("on"));
   $("#m-no").textContent = ""; $("#m-title").textContent = "";
   $("#m-meta").innerHTML = ""; $("#m-foot").innerHTML = "";
+  $("#m-body").classList.remove("md");
   $("#m-body").innerHTML = `<div class="modal-load">원문을 가져오는 중…</div>`;
   $("#m-x").focus();
   const [p] = await fetchPosts(gallery, [no]);
@@ -613,7 +635,7 @@ async function openPost(no, gallery){
     `<a class="modal-link" href="${dcUrl(gallery,p.post_no)}" target="_blank" rel="noopener">DC 원문 보기 ↗</a>`;
 }
 
-function openTextModal(eyebrow, title, text){
+function openTextModal(eyebrow, title, text, opts){
   const bd = $("#modal-backdrop");
   bd.hidden = false;
   requestAnimationFrame(()=>bd.classList.add("on"));
@@ -621,8 +643,66 @@ function openTextModal(eyebrow, title, text){
   $("#m-title").textContent = title;
   $("#m-meta").innerHTML = "";
   $("#m-foot").innerHTML = "";
-  $("#m-body").textContent = text;
+  const body = $("#m-body");
+  if(opts && opts.md){
+    body.classList.add("md");
+    body.innerHTML = renderMarkdown(text, opts.gallery || currentGallery);
+  }else{
+    body.classList.remove("md");
+    body.textContent = text;
+  }
   $("#m-x").focus();
+}
+
+/* ── 미니 마크다운 렌더러 (리포트용 부분 집합: 제목·목록·표·강조·코드·글번호) ── */
+function mdInline(s, gallery){
+  let r = esc(s);
+  r = r.replace(/`([^`]+)`/g, "<code>$1</code>")
+       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  if(gallery){
+    r = r.replace(/#(\d{4,})/g,
+      (m,n)=>`<span class="ask-ref" data-post="${n}" data-gallery="${esc(gallery)}" title="원문 보기">${m}</span>`);
+  }
+  return r;
+}
+
+function renderMarkdown(src, gallery){
+  const lines = src.split(/\r?\n/);   // 이스케이프는 mdInline 조각마다 적용
+  const out = [];
+  let listOpen = false;
+  const closeList = ()=>{ if(listOpen){ out.push("</ul>"); listOpen = false; } };
+  const cells = (row)=>row.replace(/^\||\|$/g,"").split("|").map(c=>c.trim());
+  for(let i=0; i<lines.length; i++){
+    const L = lines[i];
+    if(L.startsWith("|")){
+      const rows = [];
+      while(i < lines.length && lines[i].startsWith("|")){ rows.push(lines[i]); i++; }
+      i--;
+      const body = rows.filter(r=>!/^\|[\s:|-]+\|?$/.test(r));
+      if(body.length){
+        const head = cells(body[0]).map(c=>`<th>${mdInline(c)}</th>`).join("");
+        const rest = body.slice(1)
+          .map(r=>`<tr>${cells(r).map(c=>`<td>${mdInline(c, gallery)}</td>`).join("")}</tr>`).join("");
+        closeList();
+        out.push(`<table class="md-t"><thead><tr>${head}</tr></thead><tbody>${rest}</tbody></table>`);
+      }
+      continue;
+    }
+    const h = L.match(/^(#{1,3})\s+(.*)$/);
+    if(h){ closeList();
+      const lv = Math.min(h[1].length + 2, 5);
+      out.push(`<h${lv} class="md-h">${mdInline(h[2], gallery)}</h${lv}>`); continue; }
+    if(/^\s*[-*]\s+/.test(L)){
+      if(!listOpen){ out.push('<ul class="md-ul">'); listOpen = true; }
+      out.push(`<li>${mdInline(L.replace(/^\s*[-*]\s+/,""), gallery)}</li>`); continue;
+    }
+    if(/^\s*(-{3,}|\*{3,})\s*$/.test(L)){ closeList(); out.push('<hr class="md-hr">'); continue; }
+    if(!L.trim()){ closeList(); continue; }
+    closeList();
+    out.push(`<p class="md-p">${mdInline(L, gallery)}</p>`);
+  }
+  closeList();
+  return out.join("");
 }
 
 function closeModal(){
@@ -964,7 +1044,10 @@ async function showReport(){
     const rep = await (await fetch(`/api/report?gallery=${encodeURIComponent(g)}`)).json();
     if(!rep.found){ openTextModal("REPORT", "리포트 없음",
       `${GALLERY_NAMES[g]||g} 갤러리의 저장된 리포트가 없습니다.\n먼저 측정을 실행하세요.`); return; }
-    openTextModal(`REPORT · ${rep.path}`, `${GALLERY_NAMES[g]||g} 여론 리포트`, rep.markdown);
+    // 모달 헤더와 중복되는 리포트 첫 제목·기간 줄은 제외하고 렌더
+    let md = rep.markdown.replace(/^#\s*[^\n]*\n/, "").replace(/^기간:[^\n]*\n/, "");
+    openTextModal(`REPORT · ${rep.path}`, `${GALLERY_NAMES[g]||g} 여론 리포트`, md,
+                  {md:true, gallery:g});
   }catch(e){ openTextModal("REPORT", "오류", "리포트 로드 실패: "+e.message); }
 }
 
